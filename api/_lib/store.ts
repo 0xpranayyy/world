@@ -1,4 +1,4 @@
-import { BlobError, list, put } from '@vercel/blob'
+import { BlobError, del, list, put } from '@vercel/blob'
 import { seedPins } from './seed.js'
 
 export type Pin = {
@@ -77,12 +77,14 @@ function isAlreadyExists(err: unknown): boolean {
 // the check and silently clobber each other's data. Per-pin blobs are the
 // durable source of truth; the aggregate blob below is only a read cache
 // that self-heals whenever it's found to be out of sync.
-async function listPinBlobs(): Promise<{ pathname: string; url: string }[]> {
-  const all: { pathname: string; url: string }[] = []
+type PinBlobMeta = { pathname: string; url: string; uploadedAt: Date }
+
+async function listPinBlobs(): Promise<PinBlobMeta[]> {
+  const all: PinBlobMeta[] = []
   let cursor: string | undefined
   for (let page = 0; page < 10; page += 1) {
     const result = await list({ prefix: PIN_PREFIX, limit: 1000, cursor })
-    all.push(...result.blobs.map((blob) => ({ pathname: blob.pathname, url: blob.url })))
+    all.push(...result.blobs.map((blob) => ({ pathname: blob.pathname, url: blob.url, uploadedAt: blob.uploadedAt })))
     if (!result.hasMore) break
     cursor = result.cursor
   }
@@ -214,6 +216,28 @@ export async function addPin(draft: {
     throw err
   }
 
+  // The pre-check above isn't atomic, so a burst of concurrent submissions
+  // right at the cap could all pass it and overshoot MAX_PINS. Recheck by
+  // rank rather than raw count: rank every pin blob by (uploadedAt,
+  // pathname) -- a deterministic order every concurrent writer computes
+  // identically from the same listing -- and only self-delete if this pin's
+  // rank falls at or past MAX_PINS. Verified against a real 6-way race
+  // against an artificially low cap: exactly the cap's worth of pins survive
+  // (a naive "recount and delete self if over" approach let every single
+  // racer see itself as "the one over the limit" and all roll back, briefly
+  // rejecting everyone instead of just the excess).
+  const currentBlobs = await listPinBlobs()
+  const path = pinPath(handle)
+  const ranked = [...currentBlobs].sort((a, b) => {
+    const byTime = a.uploadedAt.getTime() - b.uploadedAt.getTime()
+    return byTime !== 0 ? byTime : a.pathname.localeCompare(b.pathname)
+  })
+  const myRank = ranked.findIndex((blob) => blob.pathname === path)
+  if (myRank === -1 || myRank >= MAX_PINS) {
+    await del(path).catch(() => {})
+    return { error: 'the globe is full', status: 507 }
+  }
+
   // Don't eagerly rebuild the aggregate here: listPinBlobs() reflects writes
   // immediately (unlike get()), so the next readPins() call will detect the
   // mismatch and rebuild it lazily. Doing it here too would mean every write
@@ -221,4 +245,13 @@ export async function addPin(draft: {
   // of concurrent submissions -- the lazy path already amortizes that cost
   // across whichever single read happens to trigger the rebuild.
   return { pin }
+}
+
+export async function deletePin(handle: string): Promise<boolean> {
+  const normalized = normalizeHandle(handle)
+  const path = pinPath(normalized)
+  const existing = await listPinBlobs()
+  if (!existing.some((blob) => blob.pathname === path)) return false
+  await del(path)
+  return true
 }
