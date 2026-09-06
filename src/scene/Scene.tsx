@@ -13,6 +13,7 @@ import { LatLongGrid } from './LatLongGrid'
 import { loadLandAssets, type LandAssets } from './land'
 import { MapLines } from './MapLines'
 import { Pins } from './Pins'
+import { PreviewPin } from './PreviewPin'
 import { Starfield } from './Starfield'
 
 type SceneProps = {
@@ -20,6 +21,7 @@ type SceneProps = {
   focusPin: Pin | null
   bloomId: string | null
   youHandle: string | null
+  previewLatLng: { lat: number; lng: number } | null
   onFocusSettled: () => void
   onSelect: (pin: Pin) => void
   onTapGlobe: (lat: number, lng: number) => void
@@ -81,6 +83,7 @@ function GlobeWorld({
   focusPin,
   bloomId,
   youHandle,
+  previewLatLng,
   onFocusSettled,
   onSelect,
   onTapGlobe,
@@ -121,6 +124,7 @@ function GlobeWorld({
         youHandle={youHandle}
         onSelect={onSelect}
       />
+      {previewLatLng ? <PreviewPin lat={previewLatLng.lat} lng={previewLatLng.lng} /> : null}
       <FocusCamera pin={focusPin} dragging={dragging} onSettled={onFocusSettled} />
       <OrbitControls
         makeDefault
@@ -145,6 +149,7 @@ export function GlobeCanvas({
   focusPin,
   bloomId,
   youHandle,
+  previewLatLng,
   onFocusSettled,
   onSelect,
   onTapGlobe,
@@ -163,6 +168,7 @@ export function GlobeCanvas({
         focusPin={focusPin}
         bloomId={bloomId}
         youHandle={youHandle}
+        previewLatLng={previewLatLng}
         onFocusSettled={onFocusSettled}
         onSelect={onSelect}
         onTapGlobe={onTapGlobe}
