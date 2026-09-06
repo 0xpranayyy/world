@@ -1,5 +1,5 @@
 import { list, put } from '@vercel/blob'
-import seedPinsJson from '../../src/data/seedPins.json'
+import { seedPins } from './seed.js'
 
 export type Pin = {
   id: string
@@ -12,7 +12,6 @@ export type Pin = {
 
 const PATH = 'world-pins.json'
 const MAX_PINS = 5000
-const seedPins = seedPinsJson as Pin[]
 
 export function isPin(value: unknown): value is Pin {
   if (typeof value !== 'object' || value === null) return false

@@ -1,4 +1,4 @@
-import { addPin, readPins } from './_lib/store'
+import { addPin, readPins } from './_lib/store.js'
 
 const noStore = { 'Cache-Control': 'no-store' }
 

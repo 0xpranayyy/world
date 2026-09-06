@@ -1,4 +1,4 @@
-import { normalizeHandle, readPins } from '../_lib/store'
+import { normalizeHandle, readPins } from '../_lib/store.js'
 
 export async function GET(
   _request: Request,
