@@ -32,7 +32,7 @@ export function Countdown() {
 
   return (
     <div className="countdown" aria-live="polite">
-      <p className="countdown-kicker">{arrived ? 'today' : 'until 9 september'}</p>
+      <p className="countdown-kicker">{arrived ? 'today' : 'something big coming on world'}</p>
       {arrived ? (
         <p className="countdown-live">9 september</p>
       ) : (

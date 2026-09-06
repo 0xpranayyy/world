@@ -346,7 +346,7 @@ button {
 .countdown-kicker {
   margin: 0 0 8px;
   font-size: 11px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   text-transform: lowercase;
   color: var(--tertiary);
 }
