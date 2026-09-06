@@ -6,7 +6,8 @@ export async function GET(): Promise<Response> {
   try {
     const pins = await readPins()
     return Response.json(pins, { headers: noStore })
-  } catch {
+  } catch (err) {
+    console.error('GET /api/pins failed:', err)
     return Response.json({ error: 'pins unavailable' }, { status: 503, headers: noStore })
   }
 }
@@ -36,7 +37,8 @@ export async function POST(request: Request): Promise<Response> {
       { error: result.error, handle: result.handle },
       { status: result.status, headers: noStore },
     )
-  } catch {
+  } catch (err) {
+    console.error('POST /api/pins failed:', err)
     return Response.json({ error: 'could not save pin' }, { status: 503, headers: noStore })
   }
 }

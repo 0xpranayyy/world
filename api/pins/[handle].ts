@@ -9,7 +9,8 @@ export async function GET(request: Request): Promise<Response> {
       return Response.json(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
     }
     return Response.json(pin, { headers: { 'Cache-Control': 'no-store' } })
-  } catch {
+  } catch (err) {
+    console.error('GET /api/pins/[handle] failed:', err)
     return Response.json({ error: 'pins unavailable' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
   }
 }
