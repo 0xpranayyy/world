@@ -17,6 +17,7 @@ import { GlobeCanvas } from './scene/Scene'
 import { myHandle } from './storage'
 import type { GeoSuggestion, Pin } from './types'
 import { AddPinPanel } from './ui/AddPinPanel'
+import { Countdown } from './ui/Countdown'
 import { PinCard } from './ui/PinCard'
 import { PinCounter } from './ui/PinCounter'
 import { Search } from './ui/Search'
@@ -188,6 +189,7 @@ function App() {
         ) : null}
       </header>
       <PinCounter pins={pins} />
+      <Countdown />
       <Search
         pins={pins}
         open={searchOpen}

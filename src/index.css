@@ -333,6 +333,91 @@ button {
   text-transform: lowercase;
 }
 
+.countdown {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  z-index: 3;
+  text-align: center;
+  pointer-events: none;
+}
+
+.countdown-kicker {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: lowercase;
+  color: var(--tertiary);
+}
+
+.countdown-row {
+  display: flex;
+  gap: 18px;
+  margin: 0;
+  padding: 10px 18px;
+  list-style: none;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+}
+
+.countdown-row li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 2.4em;
+}
+
+.countdown-num {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  background: conic-gradient(
+    from 210deg,
+    #6f4dff,
+    #4a86fb,
+    #22cfe4,
+    #fdeaa4,
+    #f45d9e,
+    #6f4dff
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.countdown-lbl {
+  margin-top: 4px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: lowercase;
+  color: var(--tertiary);
+}
+
+.countdown-live {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  text-transform: lowercase;
+  background: conic-gradient(
+    from 210deg,
+    #6f4dff,
+    #4a86fb,
+    #22cfe4,
+    #fdeaa4,
+    #f45d9e,
+    #6f4dff
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 .search {
   position: absolute;
   top: 22px;
@@ -587,6 +672,20 @@ button {
     bottom: 64px;
   }
 
+  .countdown {
+    bottom: 108px;
+  }
+
+  .countdown-row {
+    gap: 12px;
+    padding: 8px 14px;
+  }
+
+  .countdown-num,
+  .countdown-live {
+    font-size: 18px;
+  }
+
   .search {
     top: 64px;
     width: calc(100vw - 24px);
@@ -619,5 +718,13 @@ button {
 @media (prefers-reduced-motion: reduce) {
   * {
     scroll-behavior: auto;
+  }
+
+  .countdown-num,
+  .countdown-live {
+    background: none;
+    color: var(--text);
+    -webkit-background-clip: unset;
+    background-clip: unset;
   }
 }
