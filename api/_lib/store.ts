@@ -29,6 +29,14 @@ export function isPin(value: unknown): value is Pin {
   return coercePin(value) != null
 }
 
+function wrapLng(lng: number): number {
+  return ((((lng + 180) % 360) + 360) % 360) - 180
+}
+
+function clampLat(lat: number): number {
+  return Math.min(90, Math.max(-90, lat))
+}
+
 export function coercePin(value: unknown): Pin | null {
   if (typeof value !== 'object' || value === null) return null
   const v = value as Record<string, unknown>
@@ -48,8 +56,8 @@ export function coercePin(value: unknown): Pin | null {
     id: v.id,
     handle: v.handle,
     locationName: v.locationName,
-    lat,
-    lng,
+    lat: clampLat(lat),
+    lng: wrapLng(lng),
     joinedAt: v.joinedAt,
   }
 }
@@ -159,8 +167,8 @@ export async function addPin(draft: {
     id: crypto.randomUUID(),
     handle,
     locationName: draft.locationName.trim(),
-    lat: draft.lat,
-    lng: draft.lng,
+    lat: clampLat(draft.lat),
+    lng: wrapLng(draft.lng),
     joinedAt: new Date().toISOString(),
   }
 
