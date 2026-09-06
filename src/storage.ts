@@ -10,6 +10,13 @@ export class DuplicateHandleError extends Error {
   }
 }
 
+export class RateLimitedError extends Error {
+  constructor() {
+    super('too many pins from this address, try again later')
+    this.name = 'RateLimitedError'
+  }
+}
+
 const seedPins = seedPinsJson as Pin[]
 
 function isPin(value: unknown): value is Pin {
@@ -58,11 +65,12 @@ async function fromApi<T>(path: string, init?: RequestInit): Promise<T | null> {
         const body = (await res.json()) as { handle?: string }
         throw new DuplicateHandleError(body.handle ?? 'unknown')
       }
+      if (res.status === 429) throw new RateLimitedError()
       return null
     }
     return (await res.json()) as T
   } catch (err) {
-    if (err instanceof DuplicateHandleError) throw err
+    if (err instanceof DuplicateHandleError || err instanceof RateLimitedError) throw err
     return null
   }
 }
