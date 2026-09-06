@@ -1,11 +1,16 @@
 import { addPin, readPins } from './_lib/store.js'
 
 const noStore = { 'Cache-Control': 'no-store' }
+// Clients poll this endpoint every few seconds; a short CDN-cacheable window
+// lets a burst of concurrent pollers share one edge-cached response instead
+// of each hitting the Blob store directly, without meaningfully affecting
+// how fresh the pin list feels.
+const shortCache = { 'Cache-Control': 'public, max-age=2, stale-while-revalidate=8' }
 
 export async function GET(): Promise<Response> {
   try {
     const pins = await readPins()
-    return Response.json(pins, { headers: noStore })
+    return Response.json(pins, { headers: shortCache })
   } catch (err) {
     console.error('GET /api/pins failed:', err)
     return Response.json({ error: 'pins unavailable' }, { status: 503, headers: noStore })

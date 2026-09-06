@@ -13,6 +13,8 @@ export type Pin = {
 const PIN_PREFIX = 'pins/'
 const AGGREGATE_PATH = 'world-pins.json'
 const MAX_PINS = 5000
+const MAX_HANDLE_LENGTH = 32
+const MAX_LOCATION_LENGTH = 120
 
 export function isPin(value: unknown): value is Pin {
   return coercePin(value) != null
@@ -178,6 +180,9 @@ export async function addPin(draft: {
   if (!handle || !draft.locationName.trim()) {
     return { error: 'handle and location required', status: 400 }
   }
+  if (handle.length > MAX_HANDLE_LENGTH || draft.locationName.trim().length > MAX_LOCATION_LENGTH) {
+    return { error: 'handle or location too long', status: 400 }
+  }
   if (!Number.isFinite(draft.lat) || !Number.isFinite(draft.lng)) {
     return { error: 'lat lng required', status: 400 }
   }
@@ -209,8 +214,11 @@ export async function addPin(draft: {
     throw err
   }
 
-  const allPins = await readAllPinsFromSource()
-  await writeAggregate(allPins)
-
+  // Don't eagerly rebuild the aggregate here: listPinBlobs() reflects writes
+  // immediately (unlike get()), so the next readPins() call will detect the
+  // mismatch and rebuild it lazily. Doing it here too would mean every write
+  // pays the full O(pin count) re-fetch, which gets expensive under bursts
+  // of concurrent submissions -- the lazy path already amortizes that cost
+  // across whichever single read happens to trigger the rebuild.
   return { pin }
 }
