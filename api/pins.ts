@@ -1,3 +1,4 @@
+import { checkRateLimit } from './_lib/rateLimit.js'
 import { addPin, readPins } from './_lib/store.js'
 
 const noStore = { 'Cache-Control': 'no-store' }
@@ -18,6 +19,14 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const rate = await checkRateLimit(request, { key: 'add-pin', limit: 5, windowMs: 10 * 60 * 1000 })
+  if (!rate.allowed) {
+    return Response.json(
+      { error: 'too many pins from this address, try again later' },
+      { status: 429, headers: { 'Cache-Control': 'no-store', 'Retry-After': String(rate.retryAfterSeconds) } },
+    )
+  }
+
   let draft: unknown
   try {
     draft = await request.json()

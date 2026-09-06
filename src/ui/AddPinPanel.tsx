@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { normalizeHandle } from '../geo'
 import { useNominatim } from '../hooks/useNominatim'
 import { reverseGeocode } from '../lib/geocode'
-import { DuplicateHandleError } from '../storage'
+import { DuplicateHandleError, RateLimitedError } from '../storage'
 import type { GeoSuggestion, Pin, PinDraft } from '../types'
 
 type AddPinPanelProps = {
@@ -139,7 +139,7 @@ export function AddPinPanel({
       setPicked(null)
       onDropped(pin)
     } catch (err) {
-      if (err instanceof DuplicateHandleError) {
+      if (err instanceof DuplicateHandleError || err instanceof RateLimitedError) {
         setError(err.message)
       } else {
         setError('could not drop pin')
