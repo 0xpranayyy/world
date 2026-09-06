@@ -53,6 +53,7 @@ function App() {
   const [bloomId, setBloomId] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [prefill, setPrefill] = useState<GeoSuggestion | null>(null)
+  const [previewLatLng, setPreviewLatLng] = useState<{ lat: number; lng: number } | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [hint, setHint] = useState(() => !window.localStorage.getItem(SEEN_KEY))
   const [you, setYou] = useState<string | null>(() => myHandle())
@@ -106,6 +107,7 @@ function App() {
         setSharePin(null)
         setSelected(null)
         setPanelOpen(false)
+        setPreviewLatLng(null)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -125,6 +127,7 @@ function App() {
       setSelected(pin)
       setFocusPin(pin)
       setPanelOpen(false)
+      setPreviewLatLng(null)
       setPinPath(pin.handle)
       setPageMeta({
         title: `@${pin.handle} · world`,
@@ -148,6 +151,7 @@ function App() {
   const onTapGlobe = useCallback((lat: number, lng: number) => {
     dismissHint()
     setPanelOpen(true)
+    setPreviewLatLng({ lat, lng })
     void reverseGeocode(lat, lng).then((place) => {
       setPrefill(
         place ?? {
@@ -207,6 +211,7 @@ function App() {
             focusPin={focusPin}
             bloomId={bloomId}
             youHandle={you}
+            previewLatLng={previewLatLng}
             onFocusSettled={() => setFocusPin(null)}
             onSelect={onSelect}
             onTapGlobe={onTapGlobe}
@@ -227,7 +232,10 @@ function App() {
             dismissHint()
             setPanelOpen(true)
           }}
-          onClose={() => setPanelOpen(false)}
+          onClose={() => {
+            setPanelOpen(false)
+            setPreviewLatLng(null)
+          }}
           prefill={prefill}
           onDrop={dropPin}
           onDropped={onDropped}
