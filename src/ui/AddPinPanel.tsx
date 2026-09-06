@@ -177,6 +177,7 @@ export function AddPinPanel({
           placeholder="name"
           name="handle"
           inputMode="text"
+          maxLength={32}
         />
       </label>
       <label className="field">
