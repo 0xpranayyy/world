@@ -1,13 +1,23 @@
 import { Vector3 } from 'three'
 
+export function wrapLng(lng: number): number {
+  if (!Number.isFinite(lng)) return 0
+  return ((((lng + 180) % 360) + 360) % 360) - 180
+}
+
+export function clampLat(lat: number): number {
+  if (!Number.isFinite(lat)) return 0
+  return Math.min(90, Math.max(-90, lat))
+}
+
 export function latLngToVector3(
   lat: number,
   lng: number,
   radius: number,
   target = new Vector3(),
 ): Vector3 {
-  const phi = (90 - lat) * (Math.PI / 180)
-  const theta = (lng + 180) * (Math.PI / 180)
+  const phi = (90 - clampLat(lat)) * (Math.PI / 180)
+  const theta = (wrapLng(lng) + 180) * (Math.PI / 180)
   const x = -radius * Math.sin(phi) * Math.cos(theta)
   const y = radius * Math.cos(phi)
   const z = radius * Math.sin(phi) * Math.sin(theta)
@@ -20,8 +30,8 @@ export function vector3ToLatLng(v: Vector3): { lat: number; lng: number } {
   const phi = Math.acos(Math.min(1, Math.max(-1, y)))
   const theta = Math.atan2(v.z, -v.x)
   return {
-    lat: 90 - (phi * 180) / Math.PI,
-    lng: (theta * 180) / Math.PI - 180,
+    lat: clampLat(90 - (phi * 180) / Math.PI),
+    lng: wrapLng((theta * 180) / Math.PI - 180),
   }
 }
 
