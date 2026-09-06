@@ -1,4 +1,4 @@
-import { CHANNEL, MAX_PINS, MY_HANDLE_KEY, STORAGE_KEY } from './constants'
+import { CHANNEL, MY_HANDLE_KEY, STORAGE_KEY } from './constants'
 import seedPinsJson from './data/seedPins.json'
 import { normalizeHandle } from './geo'
 import type { Pin, PinDraft } from './types'
@@ -27,14 +27,12 @@ function isPin(value: unknown): value is Pin {
 
 function readLocal(): Pin[] {
   const raw = window.localStorage.getItem(STORAGE_KEY)
-  if (!raw) {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seedPins))
-    return seedPins.slice()
-  }
+  if (!raw) return seedPins.slice()
   try {
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return seedPins.slice()
-    return parsed.filter(isPin)
+    const pins = parsed.filter(isPin)
+    return pins.length > 0 ? pins : seedPins.slice()
   } catch {
     return seedPins.slice()
   }
@@ -73,9 +71,9 @@ export async function listPins(): Promise<Pin[]> {
   const remote = await fromApi<Pin[]>('/api/pins')
   const local = readLocal()
   if (remote) {
-    const byHandle = new Map(remote.map((pin) => [pin.handle, pin]))
-    for (const pin of local) {
-      if (!byHandle.has(pin.handle)) byHandle.set(pin.handle, pin)
+    const byHandle = new Map(local.map((pin) => [pin.handle, pin]))
+    for (const pin of remote) {
+      byHandle.set(pin.handle, pin)
     }
     const merged = [...byHandle.values()]
     writeLocal(merged)
@@ -106,31 +104,16 @@ export async function addPin(draft: PinDraft): Promise<Pin> {
     body: JSON.stringify(payload),
   })
   if (remote && isPin(remote)) {
-    const pins = [...readLocal().filter((p) => p.handle !== remote.handle), remote]
+    const byHandle = new Map(readLocal().map((p) => [p.handle, p]))
+    byHandle.set(remote.handle, remote)
+    const pins = [...byHandle.values()]
     writeLocal(pins)
     broadcast(pins)
     rememberMe(handle)
     return remote
   }
 
-  const pins = readLocal()
-  if (pins.some((pin) => pin.handle === handle)) {
-    throw new DuplicateHandleError(handle)
-  }
-  if (pins.length >= MAX_PINS) throw new Error('the globe is full')
-  const pin: Pin = {
-    id: crypto.randomUUID(),
-    handle,
-    locationName: payload.locationName,
-    lat: payload.lat,
-    lng: payload.lng,
-    joinedAt: new Date().toISOString(),
-  }
-  const next = [...pins, pin]
-  writeLocal(next)
-  broadcast(next)
-  rememberMe(handle)
-  return pin
+  throw new Error('could not save pin to the globe')
 }
 
 export function rememberMe(handle: string): void {

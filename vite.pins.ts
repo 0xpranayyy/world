@@ -15,6 +15,7 @@ type Pin = {
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 const dataDir = path.join(root, '.data')
+const backupFile = path.join(dataDir, 'pins.backup.json')
 const dataFile = path.join(dataDir, 'pins.json')
 const seedFile = path.join(root, 'src/data/seedPins.json')
 
@@ -36,20 +37,55 @@ function readPins(): Pin[] {
   if (!fs.existsSync(dataFile)) {
     const seed = JSON.parse(fs.readFileSync(seedFile, 'utf8')) as unknown
     const pins = Array.isArray(seed) ? seed.filter(isPin) : []
-    fs.writeFileSync(dataFile, JSON.stringify(pins, null, 2))
+    writePins(pins)
     return pins
   }
   try {
     const parsed: unknown = JSON.parse(fs.readFileSync(dataFile, 'utf8'))
-    return Array.isArray(parsed) ? parsed.filter(isPin) : []
+    if (!Array.isArray(parsed)) {
+      return readBackup() ?? []
+    }
+    const pins = parsed.filter(isPin)
+    return pins.length > 0 ? pins : (readBackup() ?? pins)
   } catch {
-    return []
+    return readBackup() ?? []
+  }
+}
+
+function readBackup(): Pin[] | null {
+  if (!fs.existsSync(backupFile)) return null
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(backupFile, 'utf8'))
+    if (!Array.isArray(parsed)) return null
+    const pins = parsed.filter(isPin)
+    return pins.length > 0 ? pins : null
+  } catch {
+    return null
   }
 }
 
 function writePins(pins: Pin[]): void {
   fs.mkdirSync(dataDir, { recursive: true })
-  fs.writeFileSync(dataFile, JSON.stringify(pins, null, 2))
+  const current = fs.existsSync(dataFile)
+    ? (() => {
+        try {
+          const parsed: unknown = JSON.parse(fs.readFileSync(dataFile, 'utf8'))
+          return Array.isArray(parsed) ? parsed.filter(isPin) : []
+        } catch {
+          return []
+        }
+      })()
+    : []
+  const byHandle = new Map(current.map((pin) => [pin.handle, pin]))
+  for (const pin of pins) {
+    if (!byHandle.has(pin.handle)) byHandle.set(pin.handle, pin)
+    else byHandle.set(pin.handle, pin)
+  }
+  const next = [...byHandle.values()]
+  if (next.length < current.length) return
+  const body = JSON.stringify(next, null, 2)
+  fs.writeFileSync(dataFile, body)
+  fs.writeFileSync(backupFile, body)
 }
 
 function send(res: ServerResponse, status: number, body: unknown): void {

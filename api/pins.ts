@@ -3,8 +3,12 @@ import { addPin, readPins } from './_lib/store.js'
 const noStore = { 'Cache-Control': 'no-store' }
 
 export async function GET(): Promise<Response> {
-  const pins = await readPins()
-  return Response.json(pins, { headers: noStore })
+  try {
+    const pins = await readPins()
+    return Response.json(pins, { headers: noStore })
+  } catch {
+    return Response.json({ error: 'pins unavailable' }, { status: 503, headers: noStore })
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -18,17 +22,21 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'invalid pin' }, { status: 400, headers: noStore })
   }
   const d = draft as Record<string, unknown>
-  const result = await addPin({
-    handle: typeof d.handle === 'string' ? d.handle : '',
-    locationName: typeof d.locationName === 'string' ? d.locationName : '',
-    lat: typeof d.lat === 'number' ? d.lat : Number.NaN,
-    lng: typeof d.lng === 'number' ? d.lng : Number.NaN,
-  })
-  if ('pin' in result) {
-    return Response.json(result.pin, { status: 201, headers: noStore })
+  try {
+    const result = await addPin({
+      handle: typeof d.handle === 'string' ? d.handle : '',
+      locationName: typeof d.locationName === 'string' ? d.locationName : '',
+      lat: typeof d.lat === 'number' ? d.lat : Number(d.lat),
+      lng: typeof d.lng === 'number' ? d.lng : Number(d.lng),
+    })
+    if ('pin' in result) {
+      return Response.json(result.pin, { status: 201, headers: noStore })
+    }
+    return Response.json(
+      { error: result.error, handle: result.handle },
+      { status: result.status, headers: noStore },
+    )
+  } catch {
+    return Response.json({ error: 'could not save pin' }, { status: 503, headers: noStore })
   }
-  return Response.json(
-    { error: result.error, handle: result.handle },
-    { status: result.status, headers: noStore },
-  )
 }

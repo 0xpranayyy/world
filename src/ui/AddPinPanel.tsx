@@ -80,7 +80,7 @@ export function AddPinPanel({
     }
   }
 
-  const useLocation = async () => {
+  const locateMe = async () => {
     if (!navigator.geolocation) {
       setError('location not available')
       return
@@ -218,7 +218,7 @@ export function AddPinPanel({
         <p className="tertiary hint">searching…</p>
       ) : null}
       {error ? <p className="error">{error}</p> : null}
-      <button type="button" className="text-link" onClick={() => void useLocation()} disabled={geoBusy}>
+      <button type="button" className="text-link" onClick={() => void locateMe()} disabled={geoBusy}>
         {geoBusy ? 'finding you…' : 'use my location'}
       </button>
       <button type="submit" className="drop" disabled={!canSubmit}>

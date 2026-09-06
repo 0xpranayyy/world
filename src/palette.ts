@@ -1,4 +1,5 @@
 import { Color } from 'three'
+import { wrapLng } from './geo'
 
 export const SWEEP_HEX = [
   '#6f4dff',
@@ -15,9 +16,10 @@ export const SWEEP_HEX = [
 const stops = SWEEP_HEX.map((hex) => new Color(hex))
 
 export function colorFromLongitude(lng: number): Color {
-  const t = ((lng + 180) / 360) % 1
+  let t = (wrapLng(lng) + 180) / 360
+  t = ((t % 1) + 1) % 1
   const scaled = t * (stops.length - 1)
-  const i0 = Math.floor(scaled)
+  const i0 = Math.min(stops.length - 1, Math.max(0, Math.floor(scaled)))
   const i1 = Math.min(i0 + 1, stops.length - 1)
   const f = scaled - i0
   return stops[i0].clone().lerp(stops[i1], f)
