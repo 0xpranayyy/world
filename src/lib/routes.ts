@@ -8,7 +8,7 @@ export function handleFromPath(pathname: string): string | null {
 }
 
 export function pinPath(handle: string): string {
-  return `/@${handle}`
+  return `/@${encodeURIComponent(handle)}`
 }
 
 export function pinUrl(handle: string): string {

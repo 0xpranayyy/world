@@ -9,6 +9,7 @@
   --sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --wash-a: rgba(72, 112, 255, 0.2);
   --wash-b: rgba(236, 60, 150, 0.16);
+  --footer-h: 62px;
 }
 
 * {
@@ -77,19 +78,10 @@ button {
   text-transform: lowercase;
 }
 
-.brand-orb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 210deg,
-    #6f4dff,
-    #22cfe4,
-    #fdeaa4,
-    #f45d9e,
-    #6f4dff
-  );
-  box-shadow: none;
+.brand-logo {
+  display: block;
+  height: 28px;
+  width: auto;
 }
 
 .counter {
@@ -120,7 +112,7 @@ button {
 .panel {
   position: absolute;
   left: 24px;
-  bottom: 24px;
+  bottom: calc(24px + var(--footer-h));
   z-index: 3;
   width: min(320px, calc(100vw - 32px));
   padding: 16px;
@@ -303,7 +295,7 @@ button {
 .panel-chip {
   position: absolute;
   left: 24px;
-  bottom: 24px;
+  bottom: calc(24px + var(--footer-h));
   z-index: 3;
   border: 1px solid var(--hairline);
   background: var(--panel);
@@ -354,7 +346,7 @@ button {
 .ticker {
   position: absolute;
   left: 50%;
-  bottom: 24px;
+  bottom: calc(24px + var(--footer-h));
   transform: translateX(-50%);
   z-index: 3;
   max-width: min(420px, calc(100vw - 48px));
@@ -409,7 +401,7 @@ button {
 .pin-card {
   position: absolute;
   right: 24px;
-  bottom: 24px;
+  bottom: calc(24px + var(--footer-h));
   z-index: 3;
   width: min(320px, calc(100vw - 32px));
   padding: 14px;
@@ -555,6 +547,10 @@ button {
 }
 
 @media (max-width: 720px) {
+  :root {
+    --footer-h: 96px;
+  }
+
   .brand {
     top: 16px;
     left: 16px;
@@ -573,18 +569,18 @@ button {
   .add-pin {
     left: 12px;
     right: 12px;
-    bottom: 12px;
+    bottom: calc(12px + var(--footer-h));
     width: auto;
     border-radius: 16px 16px 13px 13px;
   }
 
   .panel-chip {
     left: 12px;
-    bottom: 12px;
+    bottom: calc(12px + var(--footer-h));
   }
 
   .ticker {
-    bottom: 64px;
+    bottom: calc(64px + var(--footer-h));
   }
 
   .search {
@@ -614,10 +610,164 @@ button {
     width: 100%;
     border-radius: 16px 16px 13px 13px;
   }
+
+  .site-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .footer-countdown {
+    align-self: stretch;
+    justify-content: space-between;
+  }
+}
+
+.site-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  height: var(--footer-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.32) 80%, transparent);
+  border-top: 1px solid var(--hairline);
+  backdrop-filter: blur(14px);
+}
+
+.footer-credit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--secondary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-credit:hover {
+  color: var(--text);
+}
+
+.footer-credit:hover .footer-avatar {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55), 0 0 18px rgba(111, 77, 255, 0.55);
+}
+
+.footer-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--hairline);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+  transition: box-shadow 0.25s ease;
+  flex-shrink: 0;
+}
+
+.footer-credit-text {
+  font-size: 12.5px;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.footer-credit-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.footer-heart {
+  display: inline-block;
+  color: #f45d9e;
+  animation: footer-heartbeat 1.6s ease-in-out infinite;
+}
+
+.footer-countdown {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--panel);
+  white-space: nowrap;
+}
+
+.footer-countdown-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #7fe9c6, #22cfe4);
+  box-shadow: 0 0 8px rgba(34, 207, 228, 0.9);
+  animation: footer-dot-pulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.footer-countdown-label {
+  font-size: 11.5px;
+  color: var(--secondary);
+  text-transform: lowercase;
+}
+
+.footer-countdown-time {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  background: linear-gradient(90deg, #fdeaa4, #f45d9e 60%, #6f4dff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.footer-countdown-days {
+  margin-right: 4px;
+}
+
+.footer-countdown-colon {
+  opacity: 0.6;
+  margin: 0 1px;
+}
+
+@keyframes footer-dot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.65;
+  }
+}
+
+@keyframes footer-heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.25);
+  }
+  40% {
+    transform: scale(1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   * {
     scroll-behavior: auto;
+  }
+
+  .footer-heart,
+  .footer-countdown-dot {
+    animation: none;
   }
 }

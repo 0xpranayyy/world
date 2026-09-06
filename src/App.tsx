@@ -17,6 +17,7 @@ import { GlobeCanvas } from './scene/Scene'
 import { myHandle } from './storage'
 import type { GeoSuggestion, Pin } from './types'
 import { AddPinPanel } from './ui/AddPinPanel'
+import { Footer } from './ui/Footer'
 import { PinCard } from './ui/PinCard'
 import { PinCounter } from './ui/PinCounter'
 import { Search } from './ui/Search'
@@ -173,8 +174,7 @@ function App() {
     <div className="app">
       <div className="wash" aria-hidden="true" />
       <header className="brand">
-        <span className="brand-orb" aria-hidden="true" />
-        <span>world</span>
+        <img className="brand-logo" src="/world-logo.svg" alt="world map" />
         {you ? (
           <span className="you-tools">
             <span className="you-here">you're here @{you}</span>
@@ -247,6 +247,7 @@ function App() {
       {sharePin ? (
         <ShareCard pin={sharePin} pins={pins} onClose={() => setSharePin(null)} />
       ) : null}
+      <Footer />
     </div>
   )
 }
