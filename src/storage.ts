@@ -77,17 +77,17 @@ async function fromApi<T>(path: string, init?: RequestInit): Promise<T | null> {
 
 export async function listPins(): Promise<Pin[]> {
   const remote = await fromApi<Pin[]>('/api/pins')
-  const local = readLocal()
   if (remote) {
-    const byHandle = new Map(local.map((pin) => [pin.handle, pin]))
-    for (const pin of remote) {
-      byHandle.set(pin.handle, pin)
-    }
-    const merged = [...byHandle.values()]
-    writeLocal(merged)
-    return merged
+    // Trust the server fully once it responds. Keeping local-only entries
+    // around "in case the server just doesn't know about them yet" made
+    // sense before writes were made reliable -- now it only creates ghost
+    // pins that outlive their removal from the server (verified: a pin that
+    // was briefly live and then deleted server-side kept reappearing in this
+    // client's own view indefinitely, since it was never dropped from cache).
+    writeLocal(remote)
+    return remote
   }
-  return local
+  return readLocal()
 }
 
 export async function getPinByHandle(handle: string): Promise<Pin | null> {
