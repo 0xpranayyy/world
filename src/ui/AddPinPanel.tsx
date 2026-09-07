@@ -6,25 +6,33 @@ import { DuplicateHandleError, RateLimitedError, SignInRequiredError } from '../
 import type { GeoSuggestion, Pin, PinDraft } from '../types'
 import { GoogleSignInButton } from './GoogleButton'
 
+type Location = { locationName: string; lat: number; lng: number }
+
 type AddPinPanelProps = {
   open: boolean
   signedIn: boolean
+  mode?: 'add' | 'move'
   onOpen: () => void
   onClose: () => void
   prefill: GeoSuggestion | null
   onDrop: (draft: PinDraft) => Promise<Pin>
   onDropped: (pin: Pin) => void
+  onMove?: (location: Location) => Promise<Pin>
+  onMoved?: (pin: Pin) => void
   onPick?: (location: { lat: number; lng: number } | null) => void
 }
 
 export function AddPinPanel({
   open,
   signedIn,
+  mode = 'add',
   onOpen,
   onClose,
   prefill,
   onDrop,
   onDropped,
+  onMove,
+  onMoved,
   onPick,
 }: AddPinPanelProps) {
   const [handle, setHandle] = useState('')
@@ -35,23 +43,26 @@ export function AddPinPanel({
   const [busy, setBusy] = useState(false)
   const [geoBusy, setGeoBusy] = useState(false)
   const handleRef = useRef<HTMLInputElement>(null)
+  const cityRef = useRef<HTMLInputElement>(null)
   const { suggestions, loading } = useNominatim(picked ? '' : city)
+  const isMove = mode === 'move'
 
   useEffect(() => {
     if (!prefill) return
     setPicked(prefill)
     setCity(prefill.displayName)
     setError(null)
-    window.setTimeout(() => handleRef.current?.focus(), 40)
-  }, [prefill])
+    window.setTimeout(() => (isMove ? cityRef : handleRef).current?.focus(), 40)
+  }, [prefill, isMove])
 
   useEffect(() => {
     onPick?.(picked ? { lat: picked.lat, lng: picked.lng } : null)
   }, [picked, onPick])
 
   const canSubmit = useMemo(() => {
-    return normalizeHandle(handle).length > 0 && picked != null && !busy
-  }, [handle, picked, busy])
+    if (busy || picked == null) return false
+    return isMove || normalizeHandle(handle).length > 0
+  }, [handle, picked, busy, isMove])
 
   const onHandleChange = (value: string) => {
     setHandle(normalizeHandle(value))
@@ -111,7 +122,7 @@ export function AddPinPanel({
               return
             }
             pickSuggestion(place)
-            handleRef.current?.focus()
+            ;(isMove ? cityRef : handleRef).current?.focus()
           })
           .finally(() => setGeoBusy(false))
       },
@@ -129,14 +140,26 @@ export function AddPinPanel({
       setError('pick a city from the list')
       return
     }
-    const normalized = normalizeHandle(handle)
-    if (!normalized) {
-      setError('add a handle')
-      return
-    }
     setBusy(true)
     setError(null)
     try {
+      if (isMove) {
+        const pin = await onMove!({
+          locationName: picked.displayName,
+          lat: picked.lat,
+          lng: picked.lng,
+        })
+        setCity('')
+        setPicked(null)
+        onMoved?.(pin)
+        return
+      }
+      const normalized = normalizeHandle(handle)
+      if (!normalized) {
+        setError('add a handle')
+        setBusy(false)
+        return
+      }
       const pin = await onDrop({
         handle: normalized,
         locationName: picked.displayName,
@@ -151,7 +174,7 @@ export function AddPinPanel({
       if (err instanceof DuplicateHandleError || err instanceof RateLimitedError || err instanceof SignInRequiredError) {
         setError(err.message)
       } else {
-        setError('could not drop pin')
+        setError(isMove ? 'could not move pin' : 'could not drop pin')
       }
     } finally {
       setBusy(false)
@@ -170,7 +193,7 @@ export function AddPinPanel({
     return (
       <div className="panel add-pin">
         <div className="panel-top">
-          <p className="panel-kicker">drop a pin</p>
+          <p className="panel-kicker">{isMove ? 'move your pin' : 'drop a pin'}</p>
           <button type="button" className="icon-btn" onClick={onClose}>
             hide
           </button>
@@ -184,29 +207,32 @@ export function AddPinPanel({
   return (
     <form className="panel add-pin" onSubmit={submit}>
       <div className="panel-top">
-        <p className="panel-kicker">drop a pin</p>
+        <p className="panel-kicker">{isMove ? 'move your pin' : 'drop a pin'}</p>
         <button type="button" className="icon-btn" onClick={onClose}>
           hide
         </button>
       </div>
-      <label className="field">
-        <span>handle</span>
-        <input
-          ref={handleRef}
-          value={handle}
-          onChange={(e) => onHandleChange(e.target.value)}
-          autoComplete="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          placeholder="name"
-          name="handle"
-          inputMode="text"
-          maxLength={32}
-        />
-      </label>
+      {isMove ? null : (
+        <label className="field">
+          <span>handle</span>
+          <input
+            ref={handleRef}
+            value={handle}
+            onChange={(e) => onHandleChange(e.target.value)}
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="name"
+            name="handle"
+            inputMode="text"
+            maxLength={32}
+          />
+        </label>
+      )}
       <label className="field">
         <span>city</span>
         <input
+          ref={isMove ? cityRef : undefined}
           value={city}
           onChange={(e) => onCityChange(e.target.value)}
           onKeyDown={onCityKeyDown}
@@ -247,7 +273,7 @@ export function AddPinPanel({
         {geoBusy ? 'finding you…' : 'use my location'}
       </button>
       <button type="submit" className="drop" disabled={!canSubmit}>
-        {busy ? 'dropping…' : 'drop pin'}
+        {isMove ? (busy ? 'moving…' : 'move pin') : busy ? 'dropping…' : 'drop pin'}
       </button>
     </form>
   )

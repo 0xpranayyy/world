@@ -23,7 +23,7 @@ import {
 } from './lib/routes'
 import { tick } from './lib/tick'
 import { hasWebGL } from './lib/webgl'
-import { deleteMyPin, editToken, myHandle } from './storage'
+import { myHandle } from './storage'
 import type { GeoSuggestion, Pin } from './types'
 import { AddPinPanel } from './ui/AddPinPanel'
 import { Footer } from './ui/Footer'
@@ -60,7 +60,7 @@ class WebGLBoundary extends Component<{ children: ReactNode }, BoundaryState> {
 }
 
 function App() {
-  const { pins, dropPin, arrivals, dismissArrival } = usePins()
+  const { pins, dropPin, movePin, arrivals, dismissArrival } = usePins()
   const reducedMotion = usePrefersReducedMotion()
   const [selected, setSelected] = useState<Pin | null>(null)
   const [focusPin, setFocusPin] = useState<Pin | null>(null)
@@ -73,7 +73,7 @@ function App() {
   const [hint, setHint] = useState(() => !window.localStorage.getItem(SEEN_KEY))
   const [you, setYou] = useState<string | null>(() => myHandle())
   const [webgl] = useState(() => hasWebGL())
-  const [canRemoveMine, setCanRemoveMine] = useState(() => editToken() != null)
+  const [movingPin, setMovingPin] = useState(false)
   const [session, setSession] = useState<SessionInfo>(null)
 
   useEffect(() => {
@@ -133,6 +133,7 @@ function App() {
         setSelected(null)
         setPanelOpen(false)
         setPreviewLatLng(null)
+        setMovingPin(false)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -148,7 +149,6 @@ function App() {
     (pin: Pin) => {
       dismissHint()
       setYou(pin.handle)
-      setCanRemoveMine(true)
       setBloomId(pin.id)
       setSelected(pin)
       setFocusPin(pin)
@@ -208,14 +208,19 @@ function App() {
     void navigator.clipboard.writeText(`${window.location.origin}${pinPath(you)}`)
   }, [you])
 
-  const removeMine = useCallback(() => {
-    void deleteMyPin().then((removed) => {
-      if (!removed) return
-      setCanRemoveMine(false)
-      setYou(null)
-      setSelected(null)
-      setHomePath()
-    })
+  const startMove = useCallback(() => {
+    setMovingPin(true)
+    setPanelOpen(true)
+    setPreviewLatLng(null)
+  }, [])
+
+  const onMoved = useCallback((pin: Pin) => {
+    setMovingPin(false)
+    setPanelOpen(false)
+    setPreviewLatLng(null)
+    setSelected(pin)
+    setFocusPin(pin)
+    setPinPath(pin.handle)
   }, [])
 
   return (
@@ -240,11 +245,9 @@ function App() {
             <button type="button" className="text-link" onClick={copyMine}>
               copy /@{you}
             </button>
-            {canRemoveMine ? (
-              <button type="button" className="text-link" onClick={removeMine}>
-                remove my pin
-              </button>
-            ) : null}
+            <button type="button" className="text-link" onClick={startMove}>
+              move my pin
+            </button>
           </span>
         ) : null}
       </header>
@@ -284,10 +287,11 @@ function App() {
       ) : (
         <StaticGlobe />
       )}
-      {!sharePin && !you ? (
+      {!sharePin && (!you || movingPin) ? (
         <AddPinPanel
           open={panelOpen}
           signedIn={session != null}
+          mode={movingPin ? 'move' : 'add'}
           onOpen={() => {
             dismissHint()
             setPanelOpen(true)
@@ -295,10 +299,13 @@ function App() {
           onClose={() => {
             setPanelOpen(false)
             setPreviewLatLng(null)
+            setMovingPin(false)
           }}
           prefill={prefill}
           onDrop={dropPin}
           onDropped={onDropped}
+          onMove={movePin}
+          onMoved={onMoved}
           onPick={onPickLocation}
         />
       ) : null}
