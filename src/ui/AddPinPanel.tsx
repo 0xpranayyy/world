@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { normalizeHandle } from '../geo'
 import { useNominatim } from '../hooks/useNominatim'
-import { loginUrl } from '../lib/auth'
 import { reverseGeocode } from '../lib/geocode'
 import { DuplicateHandleError, RateLimitedError, SignInRequiredError } from '../storage'
 import type { GeoSuggestion, Pin, PinDraft } from '../types'
+import { GoogleSignInButton } from './GoogleButton'
 
 type AddPinPanelProps = {
   open: boolean
@@ -175,10 +175,8 @@ export function AddPinPanel({
             hide
           </button>
         </div>
-        <p className="tertiary hint">sign in with Google first -- one pin per account.</p>
-        <a className="drop" href={loginUrl()}>
-          sign in with Google
-        </a>
+        <p className="tertiary hint">sign in to prove the pin is really yours -- one pin per account.</p>
+        <GoogleSignInButton size="lg" />
       </div>
     )
   }

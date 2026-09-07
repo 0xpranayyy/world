@@ -11,7 +11,7 @@ import {
 import { SEEN_KEY } from './constants'
 import { usePins } from './hooks/usePins'
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion'
-import { fetchSession, loginUrl, logout, type SessionInfo } from './lib/auth'
+import { fetchSession, logout, type SessionInfo } from './lib/auth'
 import { reverseGeocode } from './lib/geocode'
 import { haptic } from './lib/haptics'
 import {
@@ -27,6 +27,7 @@ import { deleteMyPin, editToken, myHandle } from './storage'
 import type { GeoSuggestion, Pin } from './types'
 import { AddPinPanel } from './ui/AddPinPanel'
 import { Footer } from './ui/Footer'
+import { GoogleSignInButton } from './ui/GoogleButton'
 import { PinCard } from './ui/PinCard'
 import { PinCounter } from './ui/PinCounter'
 import { Search } from './ui/Search'
@@ -223,13 +224,12 @@ function App() {
       <header className="brand">
         <img className="brand-logo" src="/world-logo.svg" alt="world map" />
         {session ? (
-          <button type="button" className="text-link" onClick={signOut}>
-            sign out ({session.email})
+          <button type="button" className="signed-in-pill" onClick={signOut} title="sign out">
+            <span className="dot" aria-hidden="true" />
+            {session.email}
           </button>
         ) : (
-          <a className="text-link" href={loginUrl()}>
-            sign in with Google
-          </a>
+          <GoogleSignInButton />
         )}
         {you ? (
           <span className="you-tools">
