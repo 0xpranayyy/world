@@ -116,7 +116,12 @@ function GlobeWorld({
       <LatLongGrid radius={GLOBE_RADIUS} />
       {land ? <MapLines coasts={land.coasts} borders={land.borders} /> : null}
       {land ? (
-        <Labels continents={land.labels.continents} countries={land.labels.countries} radius={GLOBE_RADIUS} />
+        <Labels
+          continents={land.labels.continents}
+          countries={land.labels.countries}
+          radius={GLOBE_RADIUS}
+          globeRef={globeRef}
+        />
       ) : null}
       <Atmosphere />
       <Pins
