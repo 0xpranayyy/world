@@ -135,30 +135,23 @@ export async function addPin(draft: PinDraft): Promise<Pin> {
   throw new Error('could not save pin to the globe')
 }
 
-// Removes the caller's own pin. The server checks the signed-in Google
-// session first; a locally-saved legacy edit token (from before Google
-// sign-in existed) is sent along too, in case this pin predates it.
-export async function deleteMyPin(): Promise<boolean> {
-  try {
-    const res = await fetch('/api/pins/mine', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: editToken() }),
-      credentials: 'include',
-    })
-    if (res.ok) forgetEditToken()
-    return res.ok
-  } catch {
-    return false
-  }
+// Moves the caller's own pin to a new location instead of deleting and
+// re-dropping it. The server checks the signed-in Google session first; a
+// locally-saved legacy edit token (from before Google sign-in existed) is
+// sent along too, in case this pin predates it.
+export async function moveMyPin(location: { locationName: string; lat: number; lng: number }): Promise<Pin> {
+  const remote = await fromApi<Pin>('/api/pins/mine', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...location, token: editToken() }),
+    credentials: 'include',
+  })
+  if (remote && isPin(remote)) return remote
+  throw new Error('could not move pin')
 }
 
 export function editToken(): string | null {
   return window.localStorage.getItem(EDIT_TOKEN_KEY)
-}
-
-export function forgetEditToken(): void {
-  window.localStorage.removeItem(EDIT_TOKEN_KEY)
 }
 
 export function rememberMe(handle: string): void {

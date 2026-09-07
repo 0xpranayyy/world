@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { addPin, listPins, subscribePins } from '../storage'
+import { addPin, listPins, moveMyPin, subscribePins } from '../storage'
 import type { Pin, PinDraft } from '../types'
 
 export function usePins() {
@@ -38,9 +38,15 @@ export function usePins() {
     return pin
   }, [])
 
+  const movePin = useCallback(async (location: { locationName: string; lat: number; lng: number }) => {
+    const pin = await moveMyPin(location)
+    setPins((current) => current.map((p) => (p.id === pin.id ? pin : p)))
+    return pin
+  }, [])
+
   const dismissArrival = useCallback((id: string) => {
     setArrivals((current) => current.filter((p) => p.id !== id))
   }, [])
 
-  return { pins, dropPin, arrivals, dismissArrival }
+  return { pins, dropPin, movePin, arrivals, dismissArrival }
 }

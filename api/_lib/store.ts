@@ -196,28 +196,53 @@ export async function deletePin(handle: string): Promise<boolean> {
   return (data?.length ?? 0) > 0
 }
 
-// Legacy self-service delete for pins created before Google sign-in existed.
-export async function deletePinByToken(token: string): Promise<string | null> {
-  if (!token) return null
-  const hash = await hashEditToken(token)
+type MoveResult = { pin: Pin } | { error: string; status: number }
+
+async function movePin(
+  matcher: { column: 'google_sub' | 'edit_token_hash'; value: string },
+  update: { locationName: string; lat: number; lng: number },
+): Promise<MoveResult> {
+  const locationName = update.locationName.trim()
+  if (!locationName) {
+    return { error: 'location required', status: 400 }
+  }
+  if (locationName.length > MAX_LOCATION_LENGTH) {
+    return { error: 'location too long', status: 400 }
+  }
+  if (!Number.isFinite(update.lat) || !Number.isFinite(update.lng)) {
+    return { error: 'lat lng required', status: 400 }
+  }
+
   const { data, error } = await supabase
     .from('pins')
-    .delete()
-    .eq('edit_token_hash', hash)
-    .select('handle')
+    .update({ location_name: locationName, lat: clampLat(update.lat), lng: wrapLng(update.lng) })
+    .eq(matcher.column, matcher.value)
+    .select(PIN_COLUMNS)
   if (error) throw new Error(error.message)
-  return data?.[0]?.handle ?? null
+
+  const row = (data as unknown as PinRow[])[0]
+  if (!row) {
+    return { error: 'no matching pin', status: 404 }
+  }
+  return { pin: rowToPin(row) }
 }
 
-// Self-service delete for pins created while signed in with Google -- the
-// account's stable `sub` claim is what actually proves ownership now.
-export async function deletePinByGoogleSub(googleSub: string): Promise<string | null> {
-  if (!googleSub) return null
-  const { data, error } = await supabase
-    .from('pins')
-    .delete()
-    .eq('google_sub', googleSub)
-    .select('handle')
-  if (error) throw new Error(error.message)
-  return data?.[0]?.handle ?? null
+// Moves the pin belonging to whoever holds this signed-in Google session --
+// the account's stable `sub` claim is what proves ownership.
+export async function movePinByGoogleSub(
+  googleSub: string,
+  update: { locationName: string; lat: number; lng: number },
+): Promise<MoveResult> {
+  if (!googleSub) return { error: 'no matching pin', status: 404 }
+  return movePin({ column: 'google_sub', value: googleSub }, update)
+}
+
+// Legacy path for pins created before Google sign-in existed, proven by the
+// private edit token their browser saved instead of an account.
+export async function movePinByToken(
+  token: string,
+  update: { locationName: string; lat: number; lng: number },
+): Promise<MoveResult> {
+  if (!token) return { error: 'no matching pin', status: 404 }
+  return movePin({ column: 'edit_token_hash', value: await hashEditToken(token) }, update)
 }
