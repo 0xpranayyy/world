@@ -51,6 +51,20 @@ function alignTo(v: Vec, target: Vec): (p: Vec) => Vec {
   return (p) => rotate(p, axis, angle)
 }
 
+let logoImagePromise: Promise<HTMLImageElement | null> | null = null
+
+function loadLogoImage(): Promise<HTMLImageElement | null> {
+  if (!logoImagePromise) {
+    logoImagePromise = new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = () => resolve(null)
+      img.src = '/world-logo.svg'
+    })
+  }
+  return logoImagePromise
+}
+
 function loadLandRings(): Promise<Ring[]> {
   if (!landRingsPromise) {
     landRingsPromise = fetch('/geo/land-110m.geojson')
@@ -309,7 +323,7 @@ export async function renderShareCard(
     document.fonts.load('400 24px Inter'),
   ]).catch(() => undefined)
 
-  const rings = await loadLandRings()
+  const [rings, logoImg] = await Promise.all([loadLandRings(), loadLogoImage()])
   const canvas = document.createElement('canvas')
   canvas.width = CARD_W
   canvas.height = CARD_H
@@ -357,15 +371,21 @@ export async function renderShareCard(
   const textX = 880
   const textMax = CARD_W - textX - 88
 
-  const orb = ctx.createConicGradient(2.2, textX + 12, 128)
-  SWEEP_HEX.forEach((hex, i) => orb.addColorStop(i / (SWEEP_HEX.length - 1), hex))
-  ctx.fillStyle = orb
-  ctx.beginPath()
-  ctx.arc(textX + 12, 128, 12, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.fillStyle = '#fff'
-  ctx.font = '600 28px Inter, ui-sans-serif, system-ui, sans-serif'
-  ctx.fillText('world', textX + 36, 138)
+  if (logoImg) {
+    const logoH = 34
+    const logoW = logoH * (logoImg.width / logoImg.height)
+    ctx.drawImage(logoImg, textX, 128 - logoH / 2, logoW, logoH)
+  } else {
+    const orb = ctx.createConicGradient(2.2, textX + 12, 128)
+    SWEEP_HEX.forEach((hex, i) => orb.addColorStop(i / (SWEEP_HEX.length - 1), hex))
+    ctx.fillStyle = orb
+    ctx.beginPath()
+    ctx.arc(textX + 12, 128, 12, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = '#fff'
+    ctx.font = '600 28px Inter, ui-sans-serif, system-ui, sans-serif'
+    ctx.fillText('world', textX + 36, 138)
+  }
 
   ctx.fillStyle = 'rgba(255,255,255,0.48)'
   ctx.font = '500 24px Inter, ui-sans-serif, system-ui, sans-serif'
