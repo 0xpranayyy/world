@@ -18,7 +18,7 @@ type NominatimResult = {
 // can't satisfy either of those and is the first thing likely to break
 // under real traffic. Proxying through here lets us set a proper
 // User-Agent and add a caching layer in front of it.
-const USER_AGENT = 'world-globe (https://world-liart-one.vercel.app)'
+const USER_AGENT = 'world-globe (https://whereinworldyouare.vercel.app)'
 
 function toHit(raw: NominatimResult, fallbackId: string): GeoHit | null {
   const lat = Number(raw.lat)
