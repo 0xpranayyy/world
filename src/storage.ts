@@ -17,6 +17,13 @@ export class RateLimitedError extends Error {
   }
 }
 
+export class SignInRequiredError extends Error {
+  constructor() {
+    super('sign in with X to drop a pin')
+    this.name = 'SignInRequiredError'
+  }
+}
+
 const seedPins = seedPinsJson as Pin[]
 
 function isPin(value: unknown): value is Pin {
@@ -66,11 +73,14 @@ async function fromApi<T>(path: string, init?: RequestInit): Promise<T | null> {
         throw new DuplicateHandleError(body.handle ?? 'unknown')
       }
       if (res.status === 429) throw new RateLimitedError()
+      if (res.status === 401) throw new SignInRequiredError()
       return null
     }
     return (await res.json()) as T
   } catch (err) {
-    if (err instanceof DuplicateHandleError || err instanceof RateLimitedError) throw err
+    if (err instanceof DuplicateHandleError || err instanceof RateLimitedError || err instanceof SignInRequiredError) {
+      throw err
+    }
     return null
   }
 }
@@ -110,6 +120,7 @@ export async function addPin(draft: PinDraft): Promise<Pin> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    credentials: 'include',
   })
   if (remote && isPin(remote)) {
     const byHandle = new Map(readLocal().map((p) => [p.handle, p]))
@@ -122,6 +133,15 @@ export async function addPin(draft: PinDraft): Promise<Pin> {
   }
 
   throw new Error('could not save pin to the globe')
+}
+
+export async function deleteMyPin(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/pins/mine', { method: 'DELETE', credentials: 'include' })
+    return res.ok
+  } catch {
+    return false
+  }
 }
 
 export function rememberMe(handle: string): void {

@@ -2,6 +2,7 @@ import { Component, useCallback, useEffect, useState, type ErrorInfo, type React
 import { SEEN_KEY } from './constants'
 import { usePins } from './hooks/usePins'
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion'
+import { fetchSessionHandle, loginUrl, logout } from './lib/auth'
 import { reverseGeocode } from './lib/geocode'
 import { haptic } from './lib/haptics'
 import {
@@ -58,6 +59,15 @@ function App() {
   const [hint, setHint] = useState(() => !window.localStorage.getItem(SEEN_KEY))
   const [you, setYou] = useState<string | null>(() => myHandle())
   const [webgl] = useState(() => hasWebGL())
+  const [sessionHandle, setSessionHandle] = useState<string | null>(null)
+
+  useEffect(() => {
+    void fetchSessionHandle().then(setSessionHandle)
+  }, [])
+
+  const signOut = useCallback(() => {
+    void logout().then(() => setSessionHandle(null))
+  }, [])
 
   useEffect(() => {
     const fromUrl = handleFromPath(window.location.pathname)
@@ -187,6 +197,15 @@ function App() {
       <div className="wash" aria-hidden="true" />
       <header className="brand">
         <img className="brand-logo" src="/world-logo.svg" alt="world map" />
+        {sessionHandle ? (
+          <button type="button" className="text-link" onClick={signOut}>
+            sign out @{sessionHandle}
+          </button>
+        ) : (
+          <a className="text-link" href={loginUrl()}>
+            sign in with X
+          </a>
+        )}
         {you ? (
           <span className="you-tools">
             <span className="you-here">you're here @{you}</span>
@@ -236,6 +255,7 @@ function App() {
       {!sharePin && !you ? (
         <AddPinPanel
           open={panelOpen}
+          myHandle={sessionHandle}
           onOpen={() => {
             dismissHint()
             setPanelOpen(true)
