@@ -11,6 +11,7 @@ import {
 import { SEEN_KEY } from './constants'
 import { usePins } from './hooks/usePins'
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion'
+import { fetchSession, loginUrl, logout, type SessionInfo } from './lib/auth'
 import { reverseGeocode } from './lib/geocode'
 import { haptic } from './lib/haptics'
 import {
@@ -72,6 +73,15 @@ function App() {
   const [you, setYou] = useState<string | null>(() => myHandle())
   const [webgl] = useState(() => hasWebGL())
   const [canRemoveMine, setCanRemoveMine] = useState(() => editToken() != null)
+  const [session, setSession] = useState<SessionInfo>(null)
+
+  useEffect(() => {
+    void fetchSession().then(setSession)
+  }, [])
+
+  const signOut = useCallback(() => {
+    void logout().then(() => setSession(null))
+  }, [])
 
   useEffect(() => {
     const fromUrl = handleFromPath(window.location.pathname)
@@ -137,7 +147,7 @@ function App() {
     (pin: Pin) => {
       dismissHint()
       setYou(pin.handle)
-      setCanRemoveMine(editToken() != null)
+      setCanRemoveMine(true)
       setBloomId(pin.id)
       setSelected(pin)
       setFocusPin(pin)
@@ -212,6 +222,15 @@ function App() {
       <div className="wash" aria-hidden="true" />
       <header className="brand">
         <img className="brand-logo" src="/world-logo.svg" alt="world map" />
+        {session ? (
+          <button type="button" className="text-link" onClick={signOut}>
+            sign out ({session.email})
+          </button>
+        ) : (
+          <a className="text-link" href={loginUrl()}>
+            sign in with Google
+          </a>
+        )}
         {you ? (
           <span className="you-tools">
             <span className="you-here">you're here @{you}</span>
@@ -268,6 +287,7 @@ function App() {
       {!sharePin && !you ? (
         <AddPinPanel
           open={panelOpen}
+          signedIn={session != null}
           onOpen={() => {
             dismissHint()
             setPanelOpen(true)

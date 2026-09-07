@@ -17,6 +17,13 @@ export class RateLimitedError extends Error {
   }
 }
 
+export class SignInRequiredError extends Error {
+  constructor() {
+    super('sign in with Google to drop a pin')
+    this.name = 'SignInRequiredError'
+  }
+}
+
 const seedPins = seedPinsJson as Pin[]
 
 function isPin(value: unknown): value is Pin {
@@ -66,11 +73,14 @@ async function fromApi<T>(path: string, init?: RequestInit): Promise<T | null> {
         throw new DuplicateHandleError(body.handle ?? 'unknown')
       }
       if (res.status === 429) throw new RateLimitedError()
+      if (res.status === 401) throw new SignInRequiredError()
       return null
     }
     return (await res.json()) as T
   } catch (err) {
-    if (err instanceof DuplicateHandleError || err instanceof RateLimitedError) throw err
+    if (err instanceof DuplicateHandleError || err instanceof RateLimitedError || err instanceof SignInRequiredError) {
+      throw err
+    }
     return null
   }
 }
@@ -106,10 +116,11 @@ export async function addPin(draft: PinDraft): Promise<Pin> {
     lat: draft.lat,
     lng: draft.lng,
   }
-  const remote = await fromApi<Pin & { editToken?: string }>('/api/pins', {
+  const remote = await fromApi<Pin>('/api/pins', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    credentials: 'include',
   })
   if (remote && isPin(remote)) {
     const byHandle = new Map(readLocal().map((p) => [p.handle, p]))
@@ -118,34 +129,28 @@ export async function addPin(draft: PinDraft): Promise<Pin> {
     writeLocal(pins)
     broadcast(pins)
     rememberMe(handle)
-    if (remote.editToken) rememberEditToken(remote.editToken)
     return remote
   }
 
   throw new Error('could not save pin to the globe')
 }
 
-// Removes the pin belonging to whoever holds this browser's stored edit
-// token -- the private capability handed back once when that pin was
-// created, proving it without needing a login system.
+// Removes the caller's own pin. The server checks the signed-in Google
+// session first; a locally-saved legacy edit token (from before Google
+// sign-in existed) is sent along too, in case this pin predates it.
 export async function deleteMyPin(): Promise<boolean> {
-  const token = editToken()
-  if (!token) return false
   try {
     const res = await fetch('/api/pins/mine', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token: editToken() }),
+      credentials: 'include',
     })
     if (res.ok) forgetEditToken()
     return res.ok
   } catch {
     return false
   }
-}
-
-export function rememberEditToken(token: string): void {
-  window.localStorage.setItem(EDIT_TOKEN_KEY, token)
 }
 
 export function editToken(): string | null {

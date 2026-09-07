@@ -70,16 +70,10 @@ export function normalizeHandle(raw: string): string {
   return raw.trim().replace(/^@+/, '').toLowerCase()
 }
 
-function base64UrlEncode(bytes: Uint8Array): string {
-  let binary = ''
-  for (const b of bytes) binary += String.fromCharCode(b)
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
-
-function generateEditToken(): string {
-  return base64UrlEncode(crypto.getRandomValues(new Uint8Array(32)))
-}
-
+// Hashes a legacy edit token from before Google sign-in existed --
+// pins created back then can still be self-deleted with the token their
+// browser saved, since there's no Google account on file for them to
+// match against instead.
 async function hashEditToken(token: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
   return Array.from(new Uint8Array(digest))
@@ -133,7 +127,8 @@ export async function addPin(draft: {
   locationName: string
   lat: number
   lng: number
-}): Promise<{ pin: Pin; editToken: string } | { error: string; status: number; handle?: string }> {
+  googleSub: string
+}): Promise<{ pin: Pin } | { error: string; status: number; handle?: string }> {
   const handle = normalizeHandle(draft.handle)
   if (!handle || !draft.locationName.trim()) {
     return { error: 'handle and location required', status: 400 }
@@ -167,10 +162,6 @@ export async function addPin(draft: {
     lng: wrapLng(draft.lng),
     joinedAt: new Date().toISOString(),
   }
-  // Returned to the caller once and never stored in plaintext -- only its
-  // hash lives in the database, so a self-service delete later has to
-  // present the original token back to prove ownership.
-  const editToken = generateEditToken()
 
   const { error } = await supabase.from('pins').insert({
     id: pin.id,
@@ -179,17 +170,23 @@ export async function addPin(draft: {
     lat: pin.lat,
     lng: pin.lng,
     joined_at: pin.joinedAt,
-    edit_token_hash: await hashEditToken(editToken),
+    google_sub: draft.googleSub,
   })
 
   if (error) {
     if (error.code === '23505') {
+      // Same Postgres error code covers both unique constraints -- the
+      // message names which column collided, which is how we tell "this
+      // handle is taken" apart from "this Google account already has a pin".
+      if (error.message.includes('google_sub')) {
+        return { error: 'you already have a pin on the globe', status: 409 }
+      }
       return { error: 'already on the globe', status: 409, handle }
     }
     throw new Error(error.message)
   }
 
-  return { pin, editToken }
+  return { pin }
 }
 
 export async function deletePin(handle: string): Promise<boolean> {
@@ -199,8 +196,7 @@ export async function deletePin(handle: string): Promise<boolean> {
   return (data?.length ?? 0) > 0
 }
 
-// Self-service delete: proves ownership via the private edit token issued at
-// creation time instead of a handle, which anyone could type.
+// Legacy self-service delete for pins created before Google sign-in existed.
 export async function deletePinByToken(token: string): Promise<string | null> {
   if (!token) return null
   const hash = await hashEditToken(token)
@@ -208,6 +204,19 @@ export async function deletePinByToken(token: string): Promise<string | null> {
     .from('pins')
     .delete()
     .eq('edit_token_hash', hash)
+    .select('handle')
+  if (error) throw new Error(error.message)
+  return data?.[0]?.handle ?? null
+}
+
+// Self-service delete for pins created while signed in with Google -- the
+// account's stable `sub` claim is what actually proves ownership now.
+export async function deletePinByGoogleSub(googleSub: string): Promise<string | null> {
+  if (!googleSub) return null
+  const { data, error } = await supabase
+    .from('pins')
+    .delete()
+    .eq('google_sub', googleSub)
     .select('handle')
   if (error) throw new Error(error.message)
   return data?.[0]?.handle ?? null
