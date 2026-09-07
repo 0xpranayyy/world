@@ -17,17 +17,51 @@ type Geometry =
   | { type: 'Polygon'; coordinates: Polygon }
   | { type: 'MultiPolygon'; coordinates: MultiPolygon }
 
-type Feature = { geometry: Geometry | null }
+type CountryProperties = {
+  NAME?: string
+  LABEL_X?: number
+  LABEL_Y?: number
+  LABELRANK?: number
+}
+
+type Feature = { geometry: Geometry | null; properties?: CountryProperties }
 
 type FeatureCollection = {
   type: 'FeatureCollection'
   features: Feature[]
 }
 
+export type MapLabel = { name: string; lat: number; lng: number; rank: number }
+
 export type LandAssets = {
   texture: CanvasTexture
   coasts: BufferGeometry
   borders: BufferGeometry
+  labels: { continents: MapLabel[]; countries: MapLabel[] }
+}
+
+// Hand-placed centroids rather than computed ones -- a computed centroid for
+// a continent as spread out as Asia or split like Oceania lands somewhere
+// unhelpful (open ocean, the wrong sub-region). Rank 0 so continent labels
+// always render regardless of the zoom-based country label cutoff.
+const CONTINENT_LABELS: MapLabel[] = [
+  { name: 'africa', lat: 2, lng: 20, rank: 0 },
+  { name: 'asia', lat: 48, lng: 90, rank: 0 },
+  { name: 'europe', lat: 54, lng: 15, rank: 0 },
+  { name: 'north america', lat: 45, lng: -100, rank: 0 },
+  { name: 'south america', lat: -15, lng: -60, rank: 0 },
+  { name: 'oceania', lat: -25, lng: 140, rank: 0 },
+  { name: 'antarctica', lat: -82, lng: 0, rank: 0 },
+]
+
+function countryLabels(countries: FeatureCollection): MapLabel[] {
+  const labels: MapLabel[] = []
+  for (const feature of countries.features) {
+    const p = feature.properties
+    if (!p?.NAME || typeof p.LABEL_X !== 'number' || typeof p.LABEL_Y !== 'number') continue
+    labels.push({ name: p.NAME, lat: p.LABEL_Y, lng: p.LABEL_X, rank: p.LABELRANK ?? 5 })
+  }
+  return labels
 }
 
 function ringsFromGeometry(geometry: Geometry | null): LinearRing[] {
@@ -150,5 +184,6 @@ export async function loadLandAssets(): Promise<LandAssets> {
     texture,
     coasts: ringsToLineGeometry(coastRings, 1.0035),
     borders: ringsToLineGeometry(borderRings, 1.0032),
+    labels: { continents: CONTINENT_LABELS, countries: countryLabels(countries) },
   }
 }

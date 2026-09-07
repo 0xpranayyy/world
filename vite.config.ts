@@ -9,6 +9,6 @@ export default defineConfig({
   build: {
     // The Three.js scene chunk is large but lazy-loaded (see App.tsx) and
     // never blocks initial render, so the default 500kB warning is noise.
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 700,
   },
 })

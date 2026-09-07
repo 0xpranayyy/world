@@ -9,6 +9,7 @@ import { latLngToVector3, shortestAngle } from '../geo'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion'
 import type { Pin } from '../types'
 import { Atmosphere, GlobeCore } from './Globe'
+import { Labels } from './Labels'
 import { LatLongGrid } from './LatLongGrid'
 import { loadLandAssets, type LandAssets } from './land'
 import { MapLines } from './MapLines'
@@ -114,6 +115,9 @@ function GlobeWorld({
       <GlobeCore ref={globeRef} land={land?.texture ?? null} onTap={onTapGlobe} />
       <LatLongGrid radius={GLOBE_RADIUS} />
       {land ? <MapLines coasts={land.coasts} borders={land.borders} /> : null}
+      {land ? (
+        <Labels continents={land.labels.continents} countries={land.labels.countries} radius={GLOBE_RADIUS} />
+      ) : null}
       <Atmosphere />
       <Pins
         pins={pins}
