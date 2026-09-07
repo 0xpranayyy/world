@@ -1,4 +1,13 @@
-import { Component, useCallback, useEffect, useState, type ErrorInfo, type ReactNode } from 'react'
+import {
+  Component,
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useState,
+  type ErrorInfo,
+  type ReactNode,
+} from 'react'
 import { SEEN_KEY } from './constants'
 import { usePins } from './hooks/usePins'
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion'
@@ -13,7 +22,6 @@ import {
 } from './lib/routes'
 import { tick } from './lib/tick'
 import { hasWebGL } from './lib/webgl'
-import { GlobeCanvas } from './scene/Scene'
 import { deleteMyPin, editToken, myHandle } from './storage'
 import type { GeoSuggestion, Pin } from './types'
 import { AddPinPanel } from './ui/AddPinPanel'
@@ -21,9 +29,14 @@ import { Footer } from './ui/Footer'
 import { PinCard } from './ui/PinCard'
 import { PinCounter } from './ui/PinCounter'
 import { Search } from './ui/Search'
-import { ShareCard } from './ui/ShareCard'
 import { StaticGlobe } from './ui/StaticGlobe'
 import { Ticker } from './ui/Ticker'
+
+// Three.js/react-three-fiber account for most of the bundle -- loading them
+// only once WebGL is confirmed usable keeps the initial page weight down for
+// everyone, including the StaticGlobe fallback path that never needs them.
+const GlobeCanvas = lazy(() => import('./scene/Scene').then((m) => ({ default: m.GlobeCanvas })))
+const ShareCard = lazy(() => import('./ui/ShareCard').then((m) => ({ default: m.ShareCard })))
 
 type BoundaryState = { failed: boolean }
 
@@ -231,21 +244,23 @@ function App() {
       ) : null}
       {webgl ? (
         <WebGLBoundary>
-          <GlobeCanvas
-            pins={pins}
-            focusPin={focusPin}
-            bloomId={bloomId}
-            youHandle={you}
-            previewLatLng={previewLatLng}
-            onFocusSettled={() => setFocusPin(null)}
-            onSelect={onSelect}
-            onTapGlobe={onTapGlobe}
-            onMiss={() => {
-              if (sharePin) return
-              setSelected(null)
-              setHomePath()
-            }}
-          />
+          <Suspense fallback={<StaticGlobe />}>
+            <GlobeCanvas
+              pins={pins}
+              focusPin={focusPin}
+              bloomId={bloomId}
+              youHandle={you}
+              previewLatLng={previewLatLng}
+              onFocusSettled={() => setFocusPin(null)}
+              onSelect={onSelect}
+              onTapGlobe={onTapGlobe}
+              onMiss={() => {
+                if (sharePin) return
+                setSelected(null)
+                setHomePath()
+              }}
+            />
+          </Suspense>
         </WebGLBoundary>
       ) : (
         <StaticGlobe />
@@ -279,7 +294,9 @@ function App() {
         />
       ) : null}
       {sharePin ? (
-        <ShareCard pin={sharePin} pins={pins} onClose={() => setSharePin(null)} />
+        <Suspense fallback={null}>
+          <ShareCard pin={sharePin} pins={pins} onClose={() => setSharePin(null)} />
+        </Suspense>
       ) : null}
       <Footer />
     </div>
