@@ -10,6 +10,13 @@ const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SE
 const FREE_TIER_DB_LIMIT_BYTES = 500 * 1024 * 1024
 const WARN_AT = 0.7
 
+// rate_limits rows are never deleted by the rate limiter itself (it only
+// upserts) -- every distinct visitor x endpoint combination it has ever
+// seen otherwise accumulates forever. The longest window in use is 10
+// minutes, so anything older than a day is long past mattering for rate
+// limiting and safe to purge.
+const RATE_LIMIT_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
 type UsageStats = { db_size_bytes: number; pins_count: number; rate_limits_count: number }
 
 // Runs on Vercel's cron schedule (see vercel.json). Vercel automatically
@@ -20,6 +27,15 @@ export async function GET(request: Request): Promise<Response> {
   const auth = request.headers.get('authorization')
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response('unauthorized', { status: 401 })
+  }
+
+  const cutoff = Date.now() - RATE_LIMIT_MAX_AGE_MS
+  const { error: purgeError, count: purgedCount } = await supabase
+    .from('rate_limits')
+    .delete({ count: 'exact' })
+    .lt('window_start', cutoff)
+  if (purgeError) {
+    console.error('check-usage: rate_limits purge failed:', purgeError.message)
   }
 
   const { data, error } = await supabase.rpc('get_usage_stats').single<UsageStats>()
@@ -35,6 +51,7 @@ export async function GET(request: Request): Promise<Response> {
     usagePercent: Math.round(usageRatio * 1000) / 10,
     pinsCount: data.pins_count,
     rateLimitsCount: data.rate_limits_count,
+    rateLimitsPurged: purgedCount ?? 0,
   }
 
   if (usageRatio >= WARN_AT) {
