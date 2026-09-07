@@ -1,4 +1,5 @@
 import { checkRateLimit } from './_lib/rateLimit.js'
+import { readSession } from './_lib/session.js'
 import { addPin, readPins } from './_lib/store.js'
 
 const noStore = { 'Cache-Control': 'no-store' }
@@ -19,6 +20,13 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  // The handle comes from the caller's verified X session, never from the
+  // request body -- otherwise anyone could type any handle and claim it.
+  const session = await readSession(request)
+  if (!session) {
+    return Response.json({ error: 'sign in with X to drop a pin' }, { status: 401, headers: noStore })
+  }
+
   const rate = await checkRateLimit(request, { key: 'add-pin', limit: 5, windowMs: 10 * 60 * 1000 })
   if (!rate.allowed) {
     return Response.json(
@@ -39,7 +47,7 @@ export async function POST(request: Request): Promise<Response> {
   const d = draft as Record<string, unknown>
   try {
     const result = await addPin({
-      handle: typeof d.handle === 'string' ? d.handle : '',
+      handle: session.handle,
       locationName: typeof d.locationName === 'string' ? d.locationName : '',
       lat: typeof d.lat === 'number' ? d.lat : Number(d.lat),
       lng: typeof d.lng === 'number' ? d.lng : Number(d.lng),
