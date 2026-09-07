@@ -84,6 +84,79 @@ button {
   width: auto;
 }
 
+.google-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: lowercase;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.google-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.google-btn:active {
+  transform: scale(0.97);
+}
+
+.google-btn .google-mark {
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #fff;
+  padding: 2px;
+}
+
+.google-btn-lg {
+  width: 100%;
+  justify-content: center;
+  padding: 11px 16px 11px 12px;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.google-btn-lg .google-mark {
+  width: 20px;
+  height: 20px;
+}
+
+.signed-in-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--secondary);
+  font-size: 12px;
+  text-transform: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.signed-in-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+.signed-in-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34a853;
+  flex-shrink: 0;
+}
+
 .counter {
   position: absolute;
   top: 18px;
@@ -202,14 +275,6 @@ button {
   padding: 10px 12px;
   font-weight: 500;
   text-transform: lowercase;
-}
-
-a.drop {
-  display: block;
-  box-sizing: border-box;
-  text-align: center;
-  text-decoration: none;
-  color: inherit;
 }
 
 .drop.ghost {
