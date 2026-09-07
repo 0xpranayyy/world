@@ -28,6 +28,7 @@ import type { GeoSuggestion, Pin } from './types'
 import { AddPinPanel } from './ui/AddPinPanel'
 import { Footer } from './ui/Footer'
 import { GoogleSignInButton } from './ui/GoogleButton'
+import { MusicToggle } from './ui/MusicToggle'
 import { PinCard } from './ui/PinCard'
 import { PinCounter } from './ui/PinCounter'
 import { Search } from './ui/Search'
@@ -236,6 +237,7 @@ function App() {
         ) : (
           <GoogleSignInButton />
         )}
+        <MusicToggle />
         {you ? (
           <span className="you-tools">
             <span className="you-here">you're here @{you}</span>
