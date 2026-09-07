@@ -33,7 +33,20 @@ export async function checkRateLimit(
   const key = `${opts.key}:${await hash(ip)}`
   const now = Date.now()
 
-  const { data } = await supabase.from('rate_limits').select('count, window_start').eq('key', key).maybeSingle()
+  const { data, error: readError } = await supabase
+    .from('rate_limits')
+    .select('count, window_start')
+    .eq('key', key)
+    .maybeSingle()
+  if (readError) {
+    // Fail open -- a broken rate limiter shouldn't take down the feature it's
+    // protecting -- but log loudly, since silently treating every read
+    // failure as "no record, allow" is exactly how this went undetected
+    // before: the limiter let every request through with no visible sign
+    // anything was wrong.
+    console.error('checkRateLimit: read failed, failing open:', readError.message)
+    return { allowed: true }
+  }
 
   const windowStart = data && now - Number(data.window_start) < opts.windowMs ? Number(data.window_start) : now
   const count = data && windowStart === Number(data.window_start) ? data.count : 0
@@ -43,7 +56,12 @@ export async function checkRateLimit(
     return { allowed: false, retryAfterSeconds: Math.max(1, retryAfterSeconds) }
   }
 
-  await supabase.from('rate_limits').upsert({ key, count: count + 1, window_start: windowStart })
+  const { error: writeError } = await supabase
+    .from('rate_limits')
+    .upsert({ key, count: count + 1, window_start: windowStart })
+  if (writeError) {
+    console.error('checkRateLimit: write failed:', writeError.message)
+  }
 
   return { allowed: true }
 }
