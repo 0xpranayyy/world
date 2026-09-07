@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
+  "crons": [{ "path": "/api/cron/check-usage", "schedule": "0 6 * * *" }]
 }
