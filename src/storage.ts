@@ -1,4 +1,4 @@
-import { CHANNEL, EDIT_TOKEN_KEY, MY_HANDLE_KEY, STORAGE_KEY } from './constants'
+import { CHANNEL, MY_HANDLE_KEY, STORAGE_KEY } from './constants'
 import seedPinsJson from './data/seedPins.json'
 import { normalizeHandle } from './geo'
 import type { Pin, PinDraft } from './types'
@@ -136,22 +136,16 @@ export async function addPin(draft: PinDraft): Promise<Pin> {
 }
 
 // Moves the caller's own pin to a new location instead of deleting and
-// re-dropping it. The server checks the signed-in Google session first; a
-// locally-saved legacy edit token (from before Google sign-in existed) is
-// sent along too, in case this pin predates it.
+// re-dropping it. Ownership is proven by the signed-in Google session cookie.
 export async function moveMyPin(location: { locationName: string; lat: number; lng: number }): Promise<Pin> {
   const remote = await fromApi<Pin>('/api/pins/mine', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...location, token: editToken() }),
+    body: JSON.stringify(location),
     credentials: 'include',
   })
   if (remote && isPin(remote)) return remote
   throw new Error('could not move pin')
-}
-
-export function editToken(): string | null {
-  return window.localStorage.getItem(EDIT_TOKEN_KEY)
 }
 
 export function rememberMe(handle: string): void {

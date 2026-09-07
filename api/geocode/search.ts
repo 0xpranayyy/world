@@ -18,6 +18,12 @@ export async function GET(request: Request): Promise<Response> {
 
   const query = new URL(request.url).searchParams.get('q')?.trim() ?? ''
   if (query.length < 2) return Response.json([], { headers: cacheHeaders })
+  // No real place name runs this long, and forwarding an oversized query to
+  // Nominatim is exactly the kind of load their usage policy asks us not to
+  // send. Cheaper to reject it here than to proxy it.
+  if (query.length > 120) {
+    return Response.json({ error: 'search query too long' }, { status: 400, headers: noStore })
+  }
 
   try {
     const hits = await searchPlaces(query)
