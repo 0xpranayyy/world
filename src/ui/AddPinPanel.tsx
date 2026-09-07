@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { normalizeHandle } from '../geo'
 import { useNominatim } from '../hooks/useNominatim'
 import { reverseGeocode } from '../lib/geocode'
-import { loginUrl } from '../lib/auth'
-import { DuplicateHandleError, RateLimitedError, SignInRequiredError } from '../storage'
+import { DuplicateHandleError, RateLimitedError } from '../storage'
 import type { GeoSuggestion, Pin, PinDraft } from '../types'
 
 type AddPinPanelProps = {
   open: boolean
-  myHandle: string | null
   onOpen: () => void
   onClose: () => void
   prefill: GeoSuggestion | null
@@ -18,7 +17,6 @@ type AddPinPanelProps = {
 
 export function AddPinPanel({
   open,
-  myHandle,
   onOpen,
   onClose,
   prefill,
@@ -26,6 +24,7 @@ export function AddPinPanel({
   onDropped,
   onPick,
 }: AddPinPanelProps) {
+  const [handle, setHandle] = useState('')
   const [city, setCity] = useState('')
   const [picked, setPicked] = useState<GeoSuggestion | null>(null)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -48,8 +47,13 @@ export function AddPinPanel({
   }, [picked, onPick])
 
   const canSubmit = useMemo(() => {
-    return myHandle != null && picked != null && !busy
-  }, [myHandle, picked, busy])
+    return normalizeHandle(handle).length > 0 && picked != null && !busy
+  }, [handle, picked, busy])
+
+  const onHandleChange = (value: string) => {
+    setHandle(normalizeHandle(value))
+    setError(null)
+  }
 
   const pickSuggestion = (item: GeoSuggestion) => {
     setPicked(item)
@@ -122,24 +126,26 @@ export function AddPinPanel({
       setError('pick a city from the list')
       return
     }
-    if (!myHandle) {
-      setError('sign in with X first')
+    const normalized = normalizeHandle(handle)
+    if (!normalized) {
+      setError('add a handle')
       return
     }
     setBusy(true)
     setError(null)
     try {
       const pin = await onDrop({
-        handle: myHandle,
+        handle: normalized,
         locationName: picked.displayName,
         lat: picked.lat,
         lng: picked.lng,
       })
+      setHandle('')
       setCity('')
       setPicked(null)
       onDropped(pin)
     } catch (err) {
-      if (err instanceof DuplicateHandleError || err instanceof RateLimitedError || err instanceof SignInRequiredError) {
+      if (err instanceof DuplicateHandleError || err instanceof RateLimitedError) {
         setError(err.message)
       } else {
         setError('could not drop pin')
@@ -157,23 +163,6 @@ export function AddPinPanel({
     )
   }
 
-  if (!myHandle) {
-    return (
-      <div className="panel add-pin">
-        <div className="panel-top">
-          <p className="panel-kicker">drop a pin</p>
-          <button type="button" className="icon-btn" onClick={onClose}>
-            hide
-          </button>
-        </div>
-        <p className="tertiary hint">sign in with X to prove the pin is really yours.</p>
-        <a className="drop" href={loginUrl()}>
-          sign in with X
-        </a>
-      </div>
-    )
-  }
-
   return (
     <form className="panel add-pin" onSubmit={submit}>
       <div className="panel-top">
@@ -182,11 +171,24 @@ export function AddPinPanel({
           hide
         </button>
       </div>
-      <p className="tertiary hint">posting as @{myHandle}</p>
+      <label className="field">
+        <span>handle</span>
+        <input
+          ref={handleRef}
+          value={handle}
+          onChange={(e) => onHandleChange(e.target.value)}
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          placeholder="name"
+          name="handle"
+          inputMode="text"
+          maxLength={32}
+        />
+      </label>
       <label className="field">
         <span>city</span>
         <input
-          ref={handleRef}
           value={city}
           onChange={(e) => onCityChange(e.target.value)}
           onKeyDown={onCityKeyDown}

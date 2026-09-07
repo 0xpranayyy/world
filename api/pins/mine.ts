@@ -1,18 +1,12 @@
 import { checkRateLimit } from '../_lib/rateLimit.js'
-import { readSession } from '../_lib/session.js'
-import { deletePin } from '../_lib/store.js'
+import { deletePinByToken } from '../_lib/store.js'
 
 const noStore = { 'Cache-Control': 'no-store' }
 
-// Lets a signed-in user remove their own pin. The handle comes from their
-// verified X session, never from the request body, so this can only ever
-// delete the pin belonging to whoever is actually signed in.
+// Lets whoever holds a pin's private edit token (issued once at creation
+// time, in POST /api/pins's response) remove that pin themselves, without
+// needing the admin token.
 export async function DELETE(request: Request): Promise<Response> {
-  const session = await readSession(request)
-  if (!session) {
-    return Response.json({ error: 'sign in with X first' }, { status: 401, headers: noStore })
-  }
-
   const rate = await checkRateLimit(request, { key: 'self-delete', limit: 10, windowMs: 60 * 1000 })
   if (!rate.allowed) {
     return Response.json(
@@ -21,12 +15,25 @@ export async function DELETE(request: Request): Promise<Response> {
     )
   }
 
+  let body: unknown
   try {
-    const removed = await deletePin(session.handle)
+    body = await request.json()
+  } catch {
+    return Response.json({ error: 'invalid json' }, { status: 400, headers: noStore })
+  }
+  const token = typeof (body as Record<string, unknown> | null)?.token === 'string'
+    ? (body as { token: string }).token
+    : ''
+  if (!token) {
+    return Response.json({ error: 'edit token required' }, { status: 400, headers: noStore })
+  }
+
+  try {
+    const removed = await deletePinByToken(token)
     if (!removed) {
-      return Response.json({ error: 'no pin to remove' }, { status: 404, headers: noStore })
+      return Response.json({ error: 'no matching pin' }, { status: 404, headers: noStore })
     }
-    return Response.json({ removed: session.handle }, { headers: noStore })
+    return Response.json({ removed }, { headers: noStore })
   } catch (err) {
     console.error('DELETE /api/pins/mine failed:', err)
     return Response.json({ error: 'delete failed' }, { status: 503, headers: noStore })

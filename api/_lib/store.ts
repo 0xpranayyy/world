@@ -19,6 +19,8 @@ type PinRow = {
   joined_at: string
 }
 
+const PIN_COLUMNS = 'id, handle, location_name, lat, lng, joined_at'
+
 const MAX_PINS = 5000
 const MAX_HANDLE_LENGTH = 32
 const MAX_LOCATION_LENGTH = 120
@@ -68,6 +70,23 @@ export function normalizeHandle(raw: string): string {
   return raw.trim().replace(/^@+/, '').toLowerCase()
 }
 
+function base64UrlEncode(bytes: Uint8Array): string {
+  let binary = ''
+  for (const b of bytes) binary += String.fromCharCode(b)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function generateEditToken(): string {
+  return base64UrlEncode(crypto.getRandomValues(new Uint8Array(32)))
+}
+
+async function hashEditToken(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
 function rowToPin(row: PinRow): Pin {
   return {
     id: row.id,
@@ -101,9 +120,12 @@ async function seedIfEmpty(): Promise<void> {
 
 export async function readPins(): Promise<Pin[]> {
   await seedIfEmpty()
-  const { data, error } = await supabase.from('pins').select('*').order('joined_at', { ascending: true })
+  const { data, error } = await supabase
+    .from('pins')
+    .select(PIN_COLUMNS)
+    .order('joined_at', { ascending: true })
   if (error) throw new Error(error.message)
-  return (data as PinRow[]).map(rowToPin)
+  return (data as unknown as PinRow[]).map(rowToPin)
 }
 
 export async function addPin(draft: {
@@ -111,7 +133,7 @@ export async function addPin(draft: {
   locationName: string
   lat: number
   lng: number
-}): Promise<{ pin: Pin } | { error: string; status: number; handle?: string }> {
+}): Promise<{ pin: Pin; editToken: string } | { error: string; status: number; handle?: string }> {
   const handle = normalizeHandle(draft.handle)
   if (!handle || !draft.locationName.trim()) {
     return { error: 'handle and location required', status: 400 }
@@ -145,6 +167,10 @@ export async function addPin(draft: {
     lng: wrapLng(draft.lng),
     joinedAt: new Date().toISOString(),
   }
+  // Returned to the caller once and never stored in plaintext -- only its
+  // hash lives in the database, so a self-service delete later has to
+  // present the original token back to prove ownership.
+  const editToken = generateEditToken()
 
   const { error } = await supabase.from('pins').insert({
     id: pin.id,
@@ -153,6 +179,7 @@ export async function addPin(draft: {
     lat: pin.lat,
     lng: pin.lng,
     joined_at: pin.joinedAt,
+    edit_token_hash: await hashEditToken(editToken),
   })
 
   if (error) {
@@ -162,7 +189,7 @@ export async function addPin(draft: {
     throw new Error(error.message)
   }
 
-  return { pin }
+  return { pin, editToken }
 }
 
 export async function deletePin(handle: string): Promise<boolean> {
@@ -170,4 +197,18 @@ export async function deletePin(handle: string): Promise<boolean> {
   const { data, error } = await supabase.from('pins').delete().eq('handle', normalized).select('id')
   if (error) throw new Error(error.message)
   return (data?.length ?? 0) > 0
+}
+
+// Self-service delete: proves ownership via the private edit token issued at
+// creation time instead of a handle, which anyone could type.
+export async function deletePinByToken(token: string): Promise<string | null> {
+  if (!token) return null
+  const hash = await hashEditToken(token)
+  const { data, error } = await supabase
+    .from('pins')
+    .delete()
+    .eq('edit_token_hash', hash)
+    .select('handle')
+  if (error) throw new Error(error.message)
+  return data?.[0]?.handle ?? null
 }
