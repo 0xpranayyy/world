@@ -50,9 +50,16 @@ function buildLabelTexture(
   canvas.height = height
   // Resizing the canvas resets context state, so the font has to be reapplied.
   ctx.font = font
-  ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
+  // The globe's lit hemisphere renders light grey/white, so plain white text
+  // disappears into it there -- a dark stroke behind the fill keeps the
+  // label readable against both the lit surface and the night side.
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = fontPx * 0.22
+  ctx.strokeStyle = `rgba(0, 0, 0, ${Math.min(1, opacity + 0.35)})`
+  ctx.strokeText(text, width / 2, height / 2)
+  ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1, opacity + 0.3)})`
   ctx.fillText(text, width / 2, height / 2)
   const texture = new CanvasTexture(canvas)
   texture.needsUpdate = true
