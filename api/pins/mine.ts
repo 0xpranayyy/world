@@ -1,11 +1,13 @@
 import { checkRateLimit } from '../_lib/rateLimit.js'
-import { deletePinByToken } from '../_lib/store.js'
+import { readSession } from '../_lib/session.js'
+import { deletePinByGoogleSub, deletePinByToken } from '../_lib/store.js'
 
 const noStore = { 'Cache-Control': 'no-store' }
 
-// Lets whoever holds a pin's private edit token (issued once at creation
-// time, in POST /api/pins's response) remove that pin themselves, without
-// needing the admin token.
+// Removes the caller's own pin. A signed-in Google session is the normal
+// path; a legacy edit token (from pins created before Google sign-in
+// existed) is accepted as a fallback since those pins have no Google
+// account on file to match against.
 export async function DELETE(request: Request): Promise<Response> {
   const rate = await checkRateLimit(request, { key: 'self-delete', limit: 10, windowMs: 60 * 1000 })
   if (!rate.allowed) {
@@ -15,17 +17,28 @@ export async function DELETE(request: Request): Promise<Response> {
     )
   }
 
+  const session = await readSession(request)
+  if (session) {
+    try {
+      const removed = await deletePinByGoogleSub(session.sub)
+      if (removed) return Response.json({ removed }, { headers: noStore })
+    } catch (err) {
+      console.error('DELETE /api/pins/mine (session) failed:', err)
+      return Response.json({ error: 'delete failed' }, { status: 503, headers: noStore })
+    }
+  }
+
   let body: unknown
   try {
     body = await request.json()
   } catch {
-    return Response.json({ error: 'invalid json' }, { status: 400, headers: noStore })
+    body = null
   }
   const token = typeof (body as Record<string, unknown> | null)?.token === 'string'
     ? (body as { token: string }).token
     : ''
   if (!token) {
-    return Response.json({ error: 'edit token required' }, { status: 400, headers: noStore })
+    return Response.json({ error: 'no matching pin' }, { status: 404, headers: noStore })
   }
 
   try {
@@ -35,7 +48,7 @@ export async function DELETE(request: Request): Promise<Response> {
     }
     return Response.json({ removed }, { headers: noStore })
   } catch (err) {
-    console.error('DELETE /api/pins/mine failed:', err)
+    console.error('DELETE /api/pins/mine (token) failed:', err)
     return Response.json({ error: 'delete failed' }, { status: 503, headers: noStore })
   }
 }

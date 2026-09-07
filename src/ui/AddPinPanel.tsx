@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { normalizeHandle } from '../geo'
 import { useNominatim } from '../hooks/useNominatim'
+import { loginUrl } from '../lib/auth'
 import { reverseGeocode } from '../lib/geocode'
-import { DuplicateHandleError, RateLimitedError } from '../storage'
+import { DuplicateHandleError, RateLimitedError, SignInRequiredError } from '../storage'
 import type { GeoSuggestion, Pin, PinDraft } from '../types'
 
 type AddPinPanelProps = {
   open: boolean
+  signedIn: boolean
   onOpen: () => void
   onClose: () => void
   prefill: GeoSuggestion | null
@@ -17,6 +19,7 @@ type AddPinPanelProps = {
 
 export function AddPinPanel({
   open,
+  signedIn,
   onOpen,
   onClose,
   prefill,
@@ -145,7 +148,7 @@ export function AddPinPanel({
       setPicked(null)
       onDropped(pin)
     } catch (err) {
-      if (err instanceof DuplicateHandleError || err instanceof RateLimitedError) {
+      if (err instanceof DuplicateHandleError || err instanceof RateLimitedError || err instanceof SignInRequiredError) {
         setError(err.message)
       } else {
         setError('could not drop pin')
@@ -160,6 +163,23 @@ export function AddPinPanel({
       <button type="button" className="panel-chip" onClick={onOpen}>
         drop pin
       </button>
+    )
+  }
+
+  if (!signedIn) {
+    return (
+      <div className="panel add-pin">
+        <div className="panel-top">
+          <p className="panel-kicker">drop a pin</p>
+          <button type="button" className="icon-btn" onClick={onClose}>
+            hide
+          </button>
+        </div>
+        <p className="tertiary hint">sign in with Google first -- one pin per account.</p>
+        <a className="drop" href={loginUrl()}>
+          sign in with Google
+        </a>
+      </div>
     )
   }
 
