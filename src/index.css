@@ -466,28 +466,6 @@ button {
   color: var(--secondary);
 }
 
-.map-label {
-  display: block;
-  color: #fff;
-  text-shadow: 0 0 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.7);
-  text-transform: lowercase;
-  white-space: nowrap;
-  pointer-events: none;
-  user-select: none;
-}
-
-.map-label-continent {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  opacity: 0.6;
-}
-
-.map-label-country {
-  font-size: 10px;
-  opacity: 0.55;
-}
-
 .you-tools .text-link {
   width: auto;
   margin: 0;
