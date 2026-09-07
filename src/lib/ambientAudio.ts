@@ -1,6 +1,18 @@
 import { MUSIC_KEY } from '../constants'
 
-/** Drop a licensed track here to enable the music toggle. */
+/**
+ * public/ambient.mp3 is "Ambient - Ambient Music" by Tatamusic, from Pixabay
+ * (pixabay.com/music/ambient-ambient-ambient-music-595127/), used under the
+ * Pixabay Content License, which permits commercial use and requires no
+ * attribution. Re-encoded from 256kbps to 128kbps stereo: it plays at low
+ * volume under a 3D scene, so the bitrate bought nothing audible and cost
+ * 2.5MB of download.
+ *
+ * Note the track is registered with YouTube Content ID. That's irrelevant to
+ * playing it on a site, but a video recorded off the site could draw a claim.
+ *
+ * Swapping the track is just replacing this file.
+ */
 export const AMBIENT_TRACK = '/ambient.mp3'
 
 /** Ambient, not a performance -- it should sit under the globe, never on top of it. */
