@@ -12,6 +12,7 @@ type AddPinPanelProps = {
   prefill: GeoSuggestion | null
   onDrop: (draft: PinDraft) => Promise<Pin>
   onDropped: (pin: Pin) => void
+  onPick?: (location: { lat: number; lng: number } | null) => void
 }
 
 export function AddPinPanel({
@@ -21,6 +22,7 @@ export function AddPinPanel({
   prefill,
   onDrop,
   onDropped,
+  onPick,
 }: AddPinPanelProps) {
   const [handle, setHandle] = useState('')
   const [city, setCity] = useState('')
@@ -39,6 +41,10 @@ export function AddPinPanel({
     setError(null)
     window.setTimeout(() => handleRef.current?.focus(), 40)
   }, [prefill])
+
+  useEffect(() => {
+    onPick?.(picked ? { lat: picked.lat, lng: picked.lng } : null)
+  }, [picked, onPick])
 
   const canSubmit = useMemo(() => {
     return normalizeHandle(handle).length > 0 && picked != null && !busy

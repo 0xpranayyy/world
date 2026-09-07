@@ -164,6 +164,14 @@ function App() {
     })
   }, [dismissHint])
 
+  const onPickLocation = useCallback((location: { lat: number; lng: number } | null) => {
+    setPreviewLatLng((prev) => {
+      if (!location) return prev ? null : prev
+      if (prev && prev.lat === location.lat && prev.lng === location.lng) return prev
+      return location
+    })
+  }, [])
+
   const onFindMe = useCallback(() => {
     const mine = pins.find((p) => p.handle === you)
     if (mine) onSelect(mine)
@@ -239,6 +247,7 @@ function App() {
           prefill={prefill}
           onDrop={dropPin}
           onDropped={onDropped}
+          onPick={onPickLocation}
         />
       ) : null}
       <Ticker items={arrivals} onGone={dismissArrival} onSelect={onSelect} />
