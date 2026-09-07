@@ -1,19 +1,32 @@
 import { MUSIC_KEY } from '../constants'
 
 /**
- * public/ambient.mp3 is "Ambient - Ambient Music" by Tatamusic, from Pixabay
+ * Both files are "Ambient - Ambient Music" by Tatamusic, from Pixabay
  * (pixabay.com/music/ambient-ambient-ambient-music-595127/), used under the
  * Pixabay Content License, which permits commercial use and requires no
- * attribution. Re-encoded from 256kbps to 128kbps stereo: it plays at low
- * volume under a 3D scene, so the bitrate bought nothing audible and cost
- * 2.5MB of download.
+ * attribution. Both were encoded from the same 256kbps source rather than
+ * from each other, so neither carries a second generation of lossy artefacts.
  *
  * Note the track is registered with YouTube Content ID. That's irrelevant to
  * playing it on a site, but a video recorded off the site could draw a claim.
  *
- * Swapping the track is just replacing this file.
+ * Swapping the track means replacing both files.
  */
-export const AMBIENT_TRACK = '/ambient.mp3'
+const AMBIENT_TRACK_OGG = '/ambient.ogg' // Opus, 2.2MB
+const AMBIENT_TRACK_MP3 = '/ambient.mp3' // 128kbps, 2.5MB
+
+/**
+ * MP3 pads the start and end of the stream to fill whole frames, and that
+ * padding decodes as silence -- which is the gap you hear each time a looping
+ * track wraps around. Opus records how much to skip at each end, so the loop
+ * closes cleanly. Safari won't play Opus in an Ogg container and takes the
+ * MP3, gap and all.
+ */
+function pickTrack(): string {
+  const probe = document.createElement('audio')
+  // canPlayType answers 'probably' | 'maybe' | '' -- only the empty string is a no.
+  return probe.canPlayType('audio/ogg; codecs="opus"') !== '' ? AMBIENT_TRACK_OGG : AMBIENT_TRACK_MP3
+}
 
 /** Ambient, not a performance -- it should sit under the globe, never on top of it. */
 const TARGET_VOLUME = 0.32
@@ -24,7 +37,7 @@ let fadeTimer: number | null = null
 
 function audio(): HTMLAudioElement {
   if (!el) {
-    el = new Audio(AMBIENT_TRACK)
+    el = new Audio(pickTrack())
     el.loop = true
     el.volume = 0
     // Only the header bytes until someone actually opts in -- visitors who
