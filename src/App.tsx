@@ -2,7 +2,6 @@ import { Component, useCallback, useEffect, useState, type ErrorInfo, type React
 import { SEEN_KEY } from './constants'
 import { usePins } from './hooks/usePins'
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion'
-import { fetchSessionHandle, loginUrl, logout } from './lib/auth'
 import { reverseGeocode } from './lib/geocode'
 import { haptic } from './lib/haptics'
 import {
@@ -15,7 +14,7 @@ import {
 import { tick } from './lib/tick'
 import { hasWebGL } from './lib/webgl'
 import { GlobeCanvas } from './scene/Scene'
-import { myHandle } from './storage'
+import { deleteMyPin, editToken, myHandle } from './storage'
 import type { GeoSuggestion, Pin } from './types'
 import { AddPinPanel } from './ui/AddPinPanel'
 import { Footer } from './ui/Footer'
@@ -59,15 +58,7 @@ function App() {
   const [hint, setHint] = useState(() => !window.localStorage.getItem(SEEN_KEY))
   const [you, setYou] = useState<string | null>(() => myHandle())
   const [webgl] = useState(() => hasWebGL())
-  const [sessionHandle, setSessionHandle] = useState<string | null>(null)
-
-  useEffect(() => {
-    void fetchSessionHandle().then(setSessionHandle)
-  }, [])
-
-  const signOut = useCallback(() => {
-    void logout().then(() => setSessionHandle(null))
-  }, [])
+  const [canRemoveMine, setCanRemoveMine] = useState(() => editToken() != null)
 
   useEffect(() => {
     const fromUrl = handleFromPath(window.location.pathname)
@@ -133,6 +124,7 @@ function App() {
     (pin: Pin) => {
       dismissHint()
       setYou(pin.handle)
+      setCanRemoveMine(editToken() != null)
       setBloomId(pin.id)
       setSelected(pin)
       setFocusPin(pin)
@@ -192,20 +184,21 @@ function App() {
     void navigator.clipboard.writeText(`${window.location.origin}${pinPath(you)}`)
   }, [you])
 
+  const removeMine = useCallback(() => {
+    void deleteMyPin().then((removed) => {
+      if (!removed) return
+      setCanRemoveMine(false)
+      setYou(null)
+      setSelected(null)
+      setHomePath()
+    })
+  }, [])
+
   return (
     <div className="app">
       <div className="wash" aria-hidden="true" />
       <header className="brand">
         <img className="brand-logo" src="/world-logo.svg" alt="world map" />
-        {sessionHandle ? (
-          <button type="button" className="text-link" onClick={signOut}>
-            sign out @{sessionHandle}
-          </button>
-        ) : (
-          <a className="text-link" href={loginUrl()}>
-            sign in with X
-          </a>
-        )}
         {you ? (
           <span className="you-tools">
             <span className="you-here">you're here @{you}</span>
@@ -215,6 +208,11 @@ function App() {
             <button type="button" className="text-link" onClick={copyMine}>
               copy /@{you}
             </button>
+            {canRemoveMine ? (
+              <button type="button" className="text-link" onClick={removeMine}>
+                remove my pin
+              </button>
+            ) : null}
           </span>
         ) : null}
       </header>
@@ -255,7 +253,6 @@ function App() {
       {!sharePin && !you ? (
         <AddPinPanel
           open={panelOpen}
-          myHandle={sessionHandle}
           onOpen={() => {
             dismissHint()
             setPanelOpen(true)
