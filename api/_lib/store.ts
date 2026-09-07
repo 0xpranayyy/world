@@ -70,16 +70,6 @@ export function normalizeHandle(raw: string): string {
   return raw.trim().replace(/^@+/, '').toLowerCase()
 }
 
-// Hashes a legacy edit token from before Google sign-in existed --
-// pins created back then can still be self-deleted with the token their
-// browser saved, since there's no Google account on file for them to
-// match against instead.
-async function hashEditToken(token: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
 
 function rowToPin(row: PinRow): Pin {
   return {
@@ -199,7 +189,7 @@ export async function deletePin(handle: string): Promise<boolean> {
 type MoveResult = { pin: Pin } | { error: string; status: number }
 
 async function movePin(
-  matcher: { column: 'google_sub' | 'edit_token_hash'; value: string },
+  matcher: { column: 'google_sub'; value: string },
   update: { locationName: string; lat: number; lng: number },
 ): Promise<MoveResult> {
   const locationName = update.locationName.trim()
@@ -237,12 +227,3 @@ export async function movePinByGoogleSub(
   return movePin({ column: 'google_sub', value: googleSub }, update)
 }
 
-// Legacy path for pins created before Google sign-in existed, proven by the
-// private edit token their browser saved instead of an account.
-export async function movePinByToken(
-  token: string,
-  update: { locationName: string; lat: number; lng: number },
-): Promise<MoveResult> {
-  if (!token) return { error: 'no matching pin', status: 404 }
-  return movePin({ column: 'edit_token_hash', value: await hashEditToken(token) }, update)
-}

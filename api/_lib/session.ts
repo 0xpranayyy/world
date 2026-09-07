@@ -110,7 +110,22 @@ export async function createSessionCookie(profile: { sub: string; email: string;
 export async function readSession(request: Request): Promise<Session | null> {
   const raw = parseCookies(request)[SESSION_COOKIE]
   if (!raw) return null
-  return verifyValue<Session>(requireSecret(), raw)
+  const session = await verifyValue<Session>(requireSecret(), raw)
+  if (!session) return null
+  // The cookie's Max-Age is only a hint to the browser -- the client controls
+  // whether it honours it. Without checking the signed issue time here too, a
+  // copied session token would stay valid forever, since the signature alone
+  // never goes stale.
+  if (!isFresh(session.iat, SESSION_MAX_AGE)) return null
+  return session
+}
+
+function isFresh(issuedAtMs: unknown, maxAgeSeconds: number): boolean {
+  if (typeof issuedAtMs !== 'number' || !Number.isFinite(issuedAtMs)) return false
+  const age = Date.now() - issuedAtMs
+  // Reject clearly-future timestamps too: they'd otherwise extend a token's
+  // life indefinitely.
+  return age >= -60_000 && age < maxAgeSeconds * 1000
 }
 
 export function clearSessionCookie(): string {
@@ -119,20 +134,26 @@ export function clearSessionCookie(): string {
 
 // Short-lived cookie holding the PKCE verifier + CSRF state between
 // /api/auth/login issuing the redirect and /api/auth/callback completing it.
-export type OAuthState = { verifier: string; state: string }
+export type OAuthState = { verifier: string; state: string; iat: number }
 
 const OAUTH_COOKIE = 'oauth_state'
 const OAUTH_MAX_AGE = 60 * 10 // 10 minutes
 
-export async function createOAuthStateCookie(data: OAuthState): Promise<string> {
-  const token = await signValue(requireSecret(), data)
+export async function createOAuthStateCookie(data: { verifier: string; state: string }): Promise<string> {
+  const token = await signValue(requireSecret(), { ...data, iat: Date.now() } satisfies OAuthState)
   return serializeCookie(OAUTH_COOKIE, token, OAUTH_MAX_AGE)
 }
 
 export async function readOAuthStateCookie(request: Request): Promise<OAuthState | null> {
   const raw = parseCookies(request)[OAUTH_COOKIE]
   if (!raw) return null
-  return verifyValue<OAuthState>(requireSecret(), raw)
+  const state = await verifyValue<OAuthState>(requireSecret(), raw)
+  if (!state) return null
+  // An in-flight login should complete in seconds. Enforcing the same window
+  // server-side keeps a captured verifier/state pair from being replayable
+  // indefinitely.
+  if (!isFresh(state.iat, OAUTH_MAX_AGE)) return null
+  return state
 }
 
 export function clearOAuthStateCookie(): string {

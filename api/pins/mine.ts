@@ -1,16 +1,20 @@
 import { checkRateLimit } from '../_lib/rateLimit.js'
 import { readSession } from '../_lib/session.js'
-import { movePinByGoogleSub, movePinByToken } from '../_lib/store.js'
+import { movePinByGoogleSub } from '../_lib/store.js'
 
 const noStore = { 'Cache-Control': 'no-store' }
 
 // Moves the caller's own pin to a new location instead of deleting and
 // re-dropping it, which used to be the only way to change where you are --
 // with one pin per account, "remove and duplicate" was really just "edit"
-// done the hard way. A signed-in Google session is the normal path; a
-// legacy edit token (from pins created before Google sign-in existed) is
-// accepted as a fallback since those pins have no Google account on file.
+// done the hard way. Ownership comes from the signed-in Google session, so
+// a caller can only ever move the pin their own account created.
 export async function PATCH(request: Request): Promise<Response> {
+  const session = await readSession(request)
+  if (!session) {
+    return Response.json({ error: 'sign in with Google first' }, { status: 401, headers: noStore })
+  }
+
   const rate = await checkRateLimit(request, { key: 'move-pin', limit: 10, windowMs: 60 * 1000 })
   if (!rate.allowed) {
     return Response.json(
@@ -36,19 +40,7 @@ export async function PATCH(request: Request): Promise<Response> {
   }
 
   try {
-    const session = await readSession(request)
-    if (session) {
-      const result = await movePinByGoogleSub(session.sub, update)
-      if ('pin' in result) return Response.json(result.pin, { headers: noStore })
-      if (result.status !== 404) {
-        return Response.json({ error: result.error }, { status: result.status, headers: noStore })
-      }
-      // 404 under a valid session falls through to the legacy token check
-      // below, in case this account is moving a pre-Google-sign-in pin.
-    }
-
-    const token = typeof b.token === 'string' ? b.token : ''
-    const result = await movePinByToken(token, update)
+    const result = await movePinByGoogleSub(session.sub, update)
     if ('pin' in result) return Response.json(result.pin, { headers: noStore })
     return Response.json({ error: result.error }, { status: result.status, headers: noStore })
   } catch (err) {
