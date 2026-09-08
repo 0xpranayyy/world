@@ -22,7 +22,7 @@ export function ShareCard({ pin, pins, onClose }: ShareCardProps) {
   const permalink = pinUrl(pin.handle)
   const inPlace = placeCount(pins, pin, scope)
   const filename = `world-${pin.handle}-${scope}.png`
-  const caption = shareCaption(pin, permalink, inPlace, scope)
+  const caption = shareCaption(pin, permalink, scope)
 
   useEffect(() => {
     let revoked: string | null = null
