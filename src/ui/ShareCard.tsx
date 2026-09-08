@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { placeCount, type PlaceScope } from '../geo'
 import { copyPng, renderShareCard, shareCaption, tweetIntentUrl } from '../lib/shareCard'
-import { pinUrl, siteUrl } from '../lib/routes'
+import { pinUrl } from '../lib/routes'
 import type { Pin } from '../types'
 
 const SCOPES: PlaceScope[] = ['city', 'country', 'continent']
@@ -22,7 +22,7 @@ export function ShareCard({ pin, pins, onClose }: ShareCardProps) {
   const permalink = pinUrl(pin.handle)
   const inPlace = placeCount(pins, pin, scope)
   const filename = `world-${pin.handle}-${scope}.png`
-  const caption = shareCaption(pin, siteUrl(), scope)
+  const caption = shareCaption(pin, permalink, scope)
 
   useEffect(() => {
     let revoked: string | null = null
