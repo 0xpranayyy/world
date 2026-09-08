@@ -15,6 +15,11 @@ export function pinUrl(handle: string): string {
   return `${window.location.origin}${pinPath(handle)}`
 }
 
+/** The site root, for links that should land on the globe rather than one pin. */
+export function siteUrl(): string {
+  return window.location.origin
+}
+
 export function setPinPath(handle: string): void {
   const next = pinPath(handle)
   if (window.location.pathname !== next) {

@@ -422,16 +422,19 @@ export async function renderShareCard(
   return blob
 }
 
-export function shareCaption(pin: Pin, permalink: string, scope: PlaceScope): string {
+export function shareCaption(pin: Pin, siteUrl: string, scope: PlaceScope): string {
   // placeLabel resolves to the city, country or continent depending on which
   // the sharer picked in the card, so the post names their location at the
   // granularity they chose to reveal.
   const place = placeLabel(pin, scope)
+  // Deliberately the bare site, not the sharer's own /@handle page: the link is
+  // an invitation to the reader, and a profile URL would send them to someone
+  // else's pin. The sharer's own URL still appears on the card image.
   return [
     `I believe in @world_xyz from ${place}`,
     '',
     'the solana prediction market is my favourite prediction market',
-    `share yours world map pin here : ${permalink}`,
+    `share yours world map pin here : ${siteUrl}`,
   ].join('\n')
 }
 
