@@ -69,6 +69,7 @@ function App() {
   const [bloomId, setBloomId] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [prefill, setPrefill] = useState<GeoSuggestion | null>(null)
+  const [tapNotice, setTapNotice] = useState<string | null>(null)
   const [previewLatLng, setPreviewLatLng] = useState<{ lat: number; lng: number } | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [hint, setHint] = useState(() => !window.localStorage.getItem(SEEN_KEY))
@@ -179,15 +180,19 @@ function App() {
     dismissHint()
     setPanelOpen(true)
     setPreviewLatLng({ lat, lng })
+    setTapNotice(null)
     void reverseGeocode(lat, lng).then((place) => {
-      setPrefill(
-        place ?? {
-          id: `${lat},${lng}`,
-          displayName: `${lat.toFixed(2)}°, ${lng.toFixed(2)}°`,
-          lat,
-          lng,
-        },
-      )
+      if (!place) {
+        // Open water, or anywhere else with no name to return. This used to
+        // fall back to the raw coordinates as the location, which is how pins
+        // ended up floating in the ocean labelled "-14.94°, 102.90°". Better to
+        // decline the tap and say why.
+        setPrefill(null)
+        setPreviewLatLng(null)
+        setTapNotice('nothing there to pin — tap land, or search for a city')
+        return
+      }
+      setPrefill(place)
     })
   }, [dismissHint])
 
@@ -302,8 +307,10 @@ function App() {
             setPanelOpen(false)
             setPreviewLatLng(null)
             setMovingPin(false)
+            setTapNotice(null)
           }}
           prefill={prefill}
+          notice={tapNotice}
           onDrop={dropPin}
           onDropped={onDropped}
           onMove={movePin}

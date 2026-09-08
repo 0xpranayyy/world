@@ -15,6 +15,8 @@ type AddPinPanelProps = {
   onOpen: () => void
   onClose: () => void
   prefill: GeoSuggestion | null
+  /** Set when a tap landed somewhere unpinnable, e.g. open ocean. */
+  notice?: string | null
   onDrop: (draft: PinDraft) => Promise<Pin>
   onDropped: (pin: Pin) => void
   onMove?: (location: Location) => Promise<Pin>
@@ -29,6 +31,7 @@ export function AddPinPanel({
   onOpen,
   onClose,
   prefill,
+  notice,
   onDrop,
   onDropped,
   onMove,
@@ -268,7 +271,7 @@ export function AddPinPanel({
       ) : loading ? (
         <p className="tertiary hint">searching…</p>
       ) : null}
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="error">{error}</p> : notice ? <p className="error">{notice}</p> : null}
       <button type="button" className="text-link" onClick={() => void locateMe()} disabled={geoBusy}>
         {geoBusy ? 'finding you…' : 'use my location'}
       </button>
