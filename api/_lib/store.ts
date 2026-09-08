@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import { seedPins } from './seed.js'
 
 export type Pin = {
   id: string
@@ -82,28 +81,7 @@ function rowToPin(row: PinRow): Pin {
   }
 }
 
-async function seedIfEmpty(): Promise<void> {
-  const { count, error } = await supabase.from('pins').select('*', { count: 'exact', head: true })
-  if (error) throw new Error(error.message)
-  if ((count ?? 0) > 0) return
-
-  const seed = seedPins
-    .map(coercePin)
-    .filter((pin): pin is Pin => pin != null)
-    .map((pin) => ({
-      id: pin.id,
-      handle: pin.handle,
-      location_name: pin.locationName,
-      lat: pin.lat,
-      lng: pin.lng,
-      joined_at: pin.joinedAt,
-    }))
-  // Ignore duplicates: a concurrent request may have seeded first.
-  await supabase.from('pins').upsert(seed, { onConflict: 'handle', ignoreDuplicates: true })
-}
-
 export async function readPins(): Promise<Pin[]> {
-  await seedIfEmpty()
   const { data, error } = await supabase
     .from('pins')
     .select(PIN_COLUMNS)
@@ -129,8 +107,6 @@ export async function addPin(draft: {
   if (!Number.isFinite(draft.lat) || !Number.isFinite(draft.lng)) {
     return { error: 'lat lng required', status: 400 }
   }
-
-  await seedIfEmpty()
 
   // Soft cap: like the Blob-based version before it, this count check isn't
   // perfectly atomic under extreme concurrent bursts right at the boundary

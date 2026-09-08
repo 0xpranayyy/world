@@ -1,5 +1,4 @@
 import { CHANNEL, MY_HANDLE_KEY, STORAGE_KEY } from './constants'
-import seedPinsJson from './data/seedPins.json'
 import { normalizeHandle } from './geo'
 import type { Pin, PinDraft } from './types'
 
@@ -24,8 +23,6 @@ export class SignInRequiredError extends Error {
   }
 }
 
-const seedPins = seedPinsJson as Pin[]
-
 function isPin(value: unknown): value is Pin {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
@@ -39,16 +36,19 @@ function isPin(value: unknown): value is Pin {
   )
 }
 
+// Falls back to nothing rather than to invented people. This used to return a
+// set of demo pins whenever local storage was empty or the API was down, which
+// meant a visitor could be shown eight handles that were never real users. An
+// empty globe is honest; a populated fake one isn't.
 function readLocal(): Pin[] {
   const raw = window.localStorage.getItem(STORAGE_KEY)
-  if (!raw) return seedPins.slice()
+  if (!raw) return []
   try {
     const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return seedPins.slice()
-    const pins = parsed.filter(isPin)
-    return pins.length > 0 ? pins : seedPins.slice()
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(isPin)
   } catch {
-    return seedPins.slice()
+    return []
   }
 }
 
