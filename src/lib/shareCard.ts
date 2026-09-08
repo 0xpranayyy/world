@@ -422,15 +422,12 @@ export async function renderShareCard(
   return blob
 }
 
-export function shareCaption(
-  pin: Pin,
-  permalink: string,
-  placeCount: number,
-  scope: PlaceScope,
-): string {
+export function shareCaption(pin: Pin, permalink: string, scope: PlaceScope): string {
+  // placeLabel resolves to the city, country or continent depending on which
+  // the sharer picked in the card, so the post names their location at the
+  // granularity they chose to reveal.
   const place = placeLabel(pin, scope)
-  const crowd = placeCount > 1 ? ` · ${placeCount} people in ${place}` : ''
-  return `i dropped a pin on world · @${pin.handle} · ${place}${crowd}\n${permalink}`
+  return `I believe in @world_xyz from ${place}\n\nthe solana prediction market is my favourite prediction market\n${permalink}`
 }
 
 export function tweetIntentUrl(caption: string): string {
