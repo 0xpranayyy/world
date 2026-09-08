@@ -20,6 +20,9 @@ dist-ssr
 .data
 .vercel
 
+# Local dev-server config, per-machine
+.claude/launch.json
+
 *.suo
 *.ntvs*
 *.njsproj
