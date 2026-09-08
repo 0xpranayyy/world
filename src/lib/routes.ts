@@ -15,6 +15,11 @@ export function pinUrl(handle: string): string {
   return `${window.location.origin}${pinPath(handle)}`
 }
 
+/** The site itself, for links that invite someone to drop their own pin. */
+export function siteUrl(): string {
+  return window.location.origin
+}
+
 export function setPinPath(handle: string): void {
   const next = pinPath(handle)
   if (window.location.pathname !== next) {
