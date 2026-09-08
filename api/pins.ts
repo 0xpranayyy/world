@@ -56,7 +56,18 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'sign in with Google to drop a pin' }, { status: 401, headers: noStore })
   }
 
-  const rate = await checkRateLimit(request, { key: 'add-pin', limit: 5, windowMs: 10 * 60 * 1000 })
+  // Deliberately loose, because the IP is a poor identity here and a strict
+  // limit hurts the wrong people. Mobile carriers put thousands of users
+  // behind one address (CGNAT), so a tight per-IP cap rejects real visitors
+  // who simply share a network with someone who just pinned -- precisely what
+  // a launch spike looks like.
+  //
+  // Abuse is already bounded by something far better: a pin requires a Google
+  // session, and google_sub carries a UNIQUE constraint, so one account can
+  // only ever hold one pin. An attacker needs a fresh Google account per pin
+  // regardless of address. What's left for this limit to do is blunt
+  // resource exhaustion, which a high ceiling handles fine.
+  const rate = await checkRateLimit(request, { key: 'add-pin', limit: 100, windowMs: 10 * 60 * 1000 })
   if (!rate.allowed) {
     return Response.json(
       { error: 'too many pins from this address, try again later' },
