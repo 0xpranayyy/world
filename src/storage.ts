@@ -168,11 +168,22 @@ export function subscribePins(onPins: (pins: Pin[]) => void): () => void {
   } catch {
     channel = null
   }
-  const poll = window.setInterval(() => {
+  // A hidden tab has nothing to draw, so polling it only spends the visitor's
+  // bandwidth and a function invocation each time. Browsers throttle
+  // background timers but never stop them, so skip the work explicitly and
+  // catch up the moment the tab comes back.
+  const refresh = () => {
+    if (document.hidden) return
     void listPins().then(onPins)
-  }, 4000)
+  }
+  const poll = window.setInterval(refresh, 4000)
+  const onVisibility = () => {
+    if (!document.hidden) refresh()
+  }
+  document.addEventListener('visibilitychange', onVisibility)
   return () => {
     window.clearInterval(poll)
+    document.removeEventListener('visibilitychange', onVisibility)
     channel?.close()
   }
 }

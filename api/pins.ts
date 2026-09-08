@@ -5,14 +5,41 @@ import { addPin, readPins } from './_lib/store.js'
 const noStore = { 'Cache-Control': 'no-store' }
 // Clients poll this endpoint every few seconds; a short CDN-cacheable window
 // lets a burst of concurrent pollers share one edge-cached response instead
-// of each hitting the Blob store directly, without meaningfully affecting
-// how fresh the pin list feels.
-const shortCache = { 'Cache-Control': 'public, max-age=2, stale-while-revalidate=8' }
+// of each hitting the database directly, without meaningfully affecting how
+// fresh the pin list feels.
+//
+// A plain `Cache-Control` here does not survive: production was observed
+// returning `max-age=0, must-revalidate` no matter what this said, so the
+// edge never cached and every poll from every tab reached Postgres. The
+// CDN-specific headers are the ones the platform honours. The browser is
+// deliberately told to revalidate every time -- paired with the ETag below
+// that costs a 304 with no body rather than a full re-download.
+const edgeCache = 'public, s-maxage=2, stale-while-revalidate=8'
+const shortCache = {
+  'Cache-Control': 'public, max-age=0, must-revalidate',
+  'CDN-Cache-Control': edgeCache,
+  'Vercel-CDN-Cache-Control': edgeCache,
+}
 
-export async function GET(): Promise<Response> {
+async function etagFor(body: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(body))
+  const hex = Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  return `W/"${hex}"`
+}
+
+export async function GET(request: Request): Promise<Response> {
   try {
     const pins = await readPins()
-    return Response.json(pins, { headers: shortCache })
+    const body = JSON.stringify(pins)
+    const etag = await etagFor(body)
+    if (request.headers.get('if-none-match') === etag) {
+      return new Response(null, { status: 304, headers: { ...shortCache, ETag: etag } })
+    }
+    return new Response(body, {
+      headers: { ...shortCache, ETag: etag, 'Content-Type': 'application/json; charset=utf-8' },
+    })
   } catch (err) {
     console.error('GET /api/pins failed:', err)
     return Response.json({ error: 'pins unavailable' }, { status: 503, headers: noStore })

@@ -18,7 +18,7 @@ import {
 import type { Mesh } from 'three'
 import { GLOBE_RADIUS, MAX_PINS, PIN_LIFT } from '../constants'
 import { hashPhase, latLngToVector3, nearbyPins, shortLocation } from '../geo'
-import { clusterCell, clusterPins, shouldCluster } from '../lib/cluster'
+import { clusterCell, groupByCell } from '../lib/cluster'
 import { haptic } from '../lib/haptics'
 import { colorFromLongitude } from '../palette'
 import type { Pin } from '../types'
@@ -34,7 +34,26 @@ import {
 const dummy = new Object3D()
 const radial = new Vector3()
 const yAxis = new Vector3(0, 1, 0)
+const probe = new Vector3()
 const color = new Color()
+
+// Matches OrbitControls minDistance in Scene.tsx: once the camera is here,
+// zooming can no longer break a cluster apart.
+const MIN_CAMERA_DISTANCE = 2.15
+
+function nearestPin(pins: Pin[], point: Vector3): Pin {
+  let best = pins[0]
+  let bestDist = Infinity
+  for (const pin of pins) {
+    latLngToVector3(pin.lat, pin.lng, GLOBE_RADIUS + PIN_LIFT, probe)
+    const d = probe.distanceToSquared(point)
+    if (d < bestDist) {
+      bestDist = d
+      best = pin
+    }
+  }
+  return best
+}
 
 function skipRaycast() {}
 
@@ -136,12 +155,13 @@ export function Pins({
     [],
   )
 
-  const clustered = shouldCluster(pins.length, distance)
-  const clusters = useMemo(
-    () => (clustered ? clusterPins(pins, clusterCell(distance)) : []),
-    [clustered, distance, pins],
+  // Crowded cells collapse into clusters; everything sparse keeps rendering as
+  // a real pin. Both meshes are live at once, so zooming in genuinely dissolves
+  // clusters back into pins instead of leaving the globe as a field of blobs.
+  const { loose: visiblePins, clusters } = useMemo(
+    () => groupByCell(pins, clusterCell(distance)),
+    [distance, pins],
   )
-  const visiblePins = clustered ? [] : pins
 
   const { pointGeo, beamGeo, haloGeo, clusterGeo, pointMat, beamMat, haloMat, clusterMat } =
     useMemo(() => {
@@ -317,7 +337,6 @@ export function Pins({
         ref={pointsRef}
         args={[pointGeo, pointMat, MAX_PINS]}
         frustumCulled={false}
-        visible={!clustered}
         onPointerMove={(event) => {
           event.stopPropagation()
           if (event.instanceId == null) return
@@ -349,7 +368,6 @@ export function Pins({
         ref={clustersRef}
         args={[clusterGeo, clusterMat, MAX_PINS]}
         frustumCulled={false}
-        visible={clustered}
         onPointerMove={(event) => {
           event.stopPropagation()
           if (event.instanceId == null) return
@@ -372,12 +390,21 @@ export function Pins({
           const cluster = clusters[event.instanceId]
           if (!cluster) return
           haptic('select')
-          if (cluster.count === 1) onSelect(cluster.pins[0])
-          else onSelect(cluster.pins[0])
-          camera.position.multiplyScalar(0.86)
+          // Zooming shrinks the grid cell, so stepping in is what actually
+          // splits a cluster. Only once there's no zoom left does clicking
+          // resolve to a pin -- and then to the one nearest the cursor rather
+          // than whichever happened to be first in the bucket.
+          const room = camera.position.length() - MIN_CAMERA_DISTANCE
+          if (room > 0.05) {
+            camera.position.multiplyScalar(
+              Math.max(MIN_CAMERA_DISTANCE / camera.position.length(), 0.82),
+            )
+            return
+          }
+          onSelect(nearestPin(cluster.pins, event.point))
         }}
       />
-      {hover && !clustered ? (
+      {hover ? (
         <Html
           position={hover.position}
           occlude={[globeRef as RefObject<Object3D>]}
@@ -400,7 +427,7 @@ export function Pins({
           </div>
         </Html>
       ) : null}
-      {clusterHover && clustered ? (
+      {clusterHover ? (
         <Html
           position={clusterHover.position}
           sprite
