@@ -3,13 +3,16 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import {
   AdditiveBlending,
+  BufferGeometry,
   Color,
   CylinderGeometry,
   InstancedBufferAttribute,
   InstancedMesh,
+  LatheGeometry,
   Object3D,
   ShaderMaterial,
   SphereGeometry,
+  Vector2,
   Vector3,
 } from 'three'
 import type { Mesh } from 'three'
@@ -54,8 +57,31 @@ function makeInstanceAttrs(count: number) {
   }
 }
 
+/**
+ * Half-silhouette of a map pin -- a point at the bottom swelling into a round
+ * head -- given as (radius, height) from the tip upward and revolved around
+ * the vertical axis. A lathe rather than a flat billboard so the pin reads the
+ * same from every angle instead of turning edge-on as the globe rotates.
+ * Its origin sits at the tip, so the drop animation (which scales `position`
+ * in the shader) grows the pin up out of the surface.
+ */
+const PIN_PROFILE = [
+  [0.0, 0.0],
+  [0.005, 0.012],
+  [0.011, 0.026],
+  [0.017, 0.04],
+  [0.0205, 0.052],
+  [0.0195, 0.062],
+  [0.014, 0.07],
+  [0.006, 0.0745],
+  [0.0, 0.075],
+].map(([r, y]) => new Vector2(r, y))
+
+/** Lifts the tip just clear of the surface so it doesn't z-fight with the globe. */
+const PIN_TIP_LIFT = 0.006
+
 function attachAttrs(
-  geometry: SphereGeometry | CylinderGeometry,
+  geometry: BufferGeometry,
   attrs: ReturnType<typeof makeInstanceAttrs>,
 ) {
   geometry.setAttribute('aPhase', attrs.phase)
@@ -120,7 +146,7 @@ export function Pins({
   const { pointGeo, beamGeo, haloGeo, clusterGeo, pointMat, beamMat, haloMat, clusterMat } =
     useMemo(() => {
       const attrs = makeInstanceAttrs(MAX_PINS)
-      const nextPointGeo = new SphereGeometry(0.022, 16, 12)
+      const nextPointGeo = new LatheGeometry(PIN_PROFILE, 16)
       const nextBeamGeo = new CylinderGeometry(0.0032, 0.009, 0.11, 8, 1, true)
       const nextHaloGeo = new SphereGeometry(0.052, 16, 12)
       const nextClusterGeo = new SphereGeometry(0.07, 16, 12)
@@ -202,14 +228,22 @@ export function Pins({
       color.copy(colorFromLongitude(pin.lng))
       if (youHandle && pin.handle === youHandle) color.lerp(new Color('#ffffff'), 0.35)
 
+      // Halo stays a glow hugging the surface. It's a sphere, so it needs no
+      // orientation of its own.
       dummy.position.copy(radial).multiplyScalar(GLOBE_RADIUS + PIN_LIFT)
       dummy.scale.setScalar(1)
       dummy.quaternion.identity()
       dummy.updateMatrix()
-      points.setMatrixAt(i, dummy.matrix)
       halos.setMatrixAt(i, dummy.matrix)
-      points.setColorAt(i, color)
       halos.setColorAt(i, color)
+
+      // The pin stands off the surface with its tip down, so it has to be
+      // turned to point outward -- the same alignment the beams use.
+      dummy.position.copy(radial).multiplyScalar(GLOBE_RADIUS + PIN_TIP_LIFT)
+      dummy.quaternion.setFromUnitVectors(yAxis, radial)
+      dummy.updateMatrix()
+      points.setMatrixAt(i, dummy.matrix)
+      points.setColorAt(i, color)
 
       dummy.position.copy(radial).multiplyScalar(GLOBE_RADIUS + PIN_LIFT + 0.05)
       dummy.quaternion.setFromUnitVectors(yAxis, radial)
